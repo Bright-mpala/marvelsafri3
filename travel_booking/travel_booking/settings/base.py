@@ -46,9 +46,9 @@ DEBUG = _env_bool('DEBUG', default=False)
 
 # Allow configurable host list; default to all for convenience (override in env vars for prod)
 ALLOWED_HOSTS = [
-    host.strip()
-    for host in config('ALLOWED_HOSTS', default='*').split(',')
-    if host.strip()
+    'marvelsafri3-production.up.railway.app',
+    'localhost',
+    '127.0.0.1',
 ]
 
 # Application definition
