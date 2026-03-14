@@ -17,7 +17,7 @@ MANAGE_PY_DIR = BASE_DIR  # Same as BASE_DIR - where manage.py is located
 # ==============================
 
 ENVIRONMENT = config('ENVIRONMENT', default='development')
-SECRET_KEY = config('SECRET_KEY', default='change-me-in-production')
+SECRET_KEY = config('gy+4y(&(#2%!b02actgnm2wmjz06=uu=cfz_))rzbipqsdi$xi', default='change-me-in-production')
 
 
 def _env_bool(name, default=False):
