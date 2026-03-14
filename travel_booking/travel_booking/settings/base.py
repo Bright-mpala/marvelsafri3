@@ -102,7 +102,7 @@ INSTALLED_APPS = [
     'blog',
     'ai_assistant',
     'locations',
-    'support',
+    #'support',
     # Infrastructure apps
     'core',  # Will create for shared utilities
 ]
