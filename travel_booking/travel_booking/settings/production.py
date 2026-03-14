@@ -7,7 +7,7 @@ import logging
 
 ENVIRONMENT = 'production'
 DEBUG = False
-SECRET_KEY = config('gy+4y(&(#2%!b02actgnm2wmjz06=uu=cfz_))rzbipqsdi$xi')  # Must be set in environment
+SECRET_KEY = config('SECRET_KEY')  # Must be set in environment
 
 ALLOWED_HOSTS = [
     'marvelsafri3-production.up.railway.app',
