@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load property_filters %}
+
+{% block title %}Review {{ property.name }} | Admin Moderation{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-50">
+    <div class="mx-auto max-w-7xl px-4 py-8">
+        <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <a href="{% url 'properties:admin_property_pending' %}" class="text-sm font-medium text-sky-700 hover:text-sky-800">
+                    <i class="fa-solid fa-arrow-left mr-2"></i>Back to pending properties
+                </a>
+                <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ property.name }}</h1>
+                <p class="mt-2 text-sm text-slate-600">Review the host submission, verify the listing details, and decide whether this property can go public.</p>
+            </div>
+            <div class="inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold
+                {% if property.status == 'approved' %}bg-emerald-50 text-emerald-700
+                {% elif property.status == 'rejected' %}bg-rose-50 text-rose-700
+                {% elif property.status == 'suspended' %}bg-violet-50 text-violet-700
+                {% else %}bg-amber-50 text-amber-700{% endif %}">
+                {{ property.get_status_display }}
+            </div>
+        </div>
+
+        <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_360px]">
+            <div class="space-y-6">
+                <section class="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                    <div class="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+                        {% for image in property.images.all %}
+                        <div class="relative overflow-hidden rounded-3xl bg-slate-100">
+                            <img src="{{ image|property_image_url }}" alt="{{ image.caption|default:property.name }}" class="h-56 w-full object-cover">
+                            {% if image.is_primary %}
+                            <span class="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-800 shadow-sm">Primary</span>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <div class="col-span-full flex h-64 items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+                            <i class="fa-regular fa-image text-4xl"></i>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="grid gap-4 md:grid-cols-3">
+                        <div class="rounded-3xl bg-slate-50 p-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Location</p>
+                            <p class="mt-2 text-sm font-semibold text-slate-900">{{ property.city }}, {{ property.country.name }}</p>
+                            <p class="mt-1 text-sm text-slate-500">{{ property.address }}</p>
+                        </div>
+                        <div class="rounded-3xl bg-slate-50 p-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Price per night</p>
+                            <p class="mt-2 text-2xl font-bold text-slate-900">
+                                {% if property.minimum_price %}${{ property.minimum_price|floatformat:2 }}{% else %}Not set{% endif %}
+                            </p>
+                            {% if property.maximum_price %}<p class="mt-1 text-sm text-slate-500">Up to ${{ property.maximum_price|floatformat:2 }}</p>{% endif %}
+                        </div>
+                        <div class="rounded-3xl bg-slate-50 p-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Submission</p>
+                            <p class="mt-2 text-sm font-semibold text-slate-900">{{ property.submitted_at|default:property.created_at|date:"M d, Y H:i" }}</p>
+                            <p class="mt-1 text-sm text-slate-500">{{ property.submitted_at|default:property.created_at|timesince }} ago</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Listing description</p>
+                        <div class="prose prose-slate mt-3 max-w-none text-sm text-slate-700">
+                            {{ property.description|linebreaks }}
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="space-y-6">
+                <section class="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-slate-900">Host information</h2>
+                    <div class="mt-4 flex items-center gap-4 rounded-3xl bg-slate-50 p-4">
+                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-600 text-lg font-bold uppercase text-white">
+                            {{ property.owner.get_full_name|default:property.owner.email|slice:":1" }}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-semibold text-slate-900">{{ property.owner.get_full_name|default:property.owner.email }}</p>
+                            <p class="truncate text-sm text-slate-500">{{ property.owner.email }}</p>
+                            <p class="mt-1 text-xs text-slate-400">Joined {{ property.owner.date_joined|date:"M Y" }}</p>
+                        </div>
+                    </div>
+                    <dl class="mt-4 space-y-3 text-sm">
+                        <div class="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                            <dt class="text-slate-500">Property type</dt>
+                            <dd class="font-semibold text-slate-900">{{ property.property_type.name }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                            <dt class="text-slate-500">Photos uploaded</dt>
+                            <dd class="font-semibold text-slate-900">{{ property.images.count }}</dd>
+                        </div>
+                        <div class="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                            <dt class="text-slate-500">Status</dt>
+                            <dd class="font-semibold text-slate-900">{{ property.get_status_display }}</dd>
+                        </div>
+                    </dl>
+                </section>
+
+                <section class="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-slate-900">Moderation actions</h2>
+                    <p class="mt-2 text-sm text-slate-500">Approving makes the listing visible in search. Rejecting sends feedback to the host. Suspending removes an existing listing from search.</p>
+
+                    <form method="post" action="{% url 'properties:admin_property_approve' property.slug %}" class="mt-5">
+                        {% csrf_token %}
+                        <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
+                            <i class="fa-regular fa-circle-check"></i>
+                            Approve
+                        </button>
+                    </form>
+
+                    <form method="post" action="{% url 'properties:admin_property_reject' property.slug %}" class="mt-4 space-y-3">
+                        {% csrf_token %}
+                        <label for="rejection_reason" class="text-sm font-semibold text-slate-900">Reject with reason</label>
+                        <textarea id="rejection_reason" name="rejection_reason" rows="4" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-rose-400 focus:outline-none focus:ring-4 focus:ring-rose-100" placeholder="Explain what the host needs to fix before resubmitting." required></textarea>
+                        <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white hover:bg-rose-700">
+                            <i class="fa-regular fa-circle-xmark"></i>
+                            Reject
+                        </button>
+                    </form>
+
+                    <form method="post" action="{% url 'properties:admin_property_review' property.slug %}" class="mt-4 space-y-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="suspend">
+                        <label for="suspension_reason" class="text-sm font-semibold text-slate-900">Suspend listing</label>
+                        <textarea id="suspension_reason" name="rejection_reason" rows="3" class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-100" placeholder="Record the policy or marketplace violation." required></textarea>
+                        <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-700 hover:bg-violet-100">
+                            <i class="fa-solid fa-ban"></i>
+                            Suspend listing
+                        </button>
+                    </form>
+                </section>
+            </aside>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Frequently Asked Questions - Marvel Safari{% endblock %}
+{% block meta_description %}Find answers to frequently asked questions about Marvel Safari bookings, travel requirements, payments, and safari experiences.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-6xl mx-auto space-y-8">
+    <header class="card card-body lg:p-10">
+      <p class="badge badge-info mb-4">Support</p>
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-900">Frequently Asked Questions</h1>
+      <p class="text-gray-600 mt-4 max-w-3xl">Fast answers for booking, payment, safety, and travel preparation topics.</p>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-2">
+      <div class="card card-body space-y-5">
+        <h2 class="text-xl font-bold text-gray-900">Bookings</h2>
+        <div>
+          <h3 class="font-semibold text-gray-900">How early should I book?</h3>
+          <p class="text-gray-700 text-sm mt-1">Book 3 to 6 months in advance for high season and premium properties.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Can I modify a reservation?</h3>
+          <p class="text-gray-700 text-sm mt-1">Yes, subject to provider policy and current availability.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">What is included?</h3>
+          <p class="text-gray-700 text-sm mt-1">Inclusions vary by listing. Review the exact breakdown before checkout.</p>
+        </div>
+      </div>
+
+      <div class="card card-body space-y-5">
+        <h2 class="text-xl font-bold text-gray-900">Payments and Cancellations</h2>
+        <div>
+          <h3 class="font-semibold text-gray-900">Which payment methods are supported?</h3>
+          <p class="text-gray-700 text-sm mt-1">Card and region-specific digital methods may be available based on provider settings.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Do refunds apply?</h3>
+          <p class="text-gray-700 text-sm mt-1">Refund eligibility follows the cancellation terms shown on the booking details.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">How long do refunds take?</h3>
+          <p class="text-gray-700 text-sm mt-1">Processing timelines depend on payment method and banking provider.</p>
+        </div>
+      </div>
+
+      <div class="card card-body space-y-5">
+        <h2 class="text-xl font-bold text-gray-900">Travel Planning</h2>
+        <div>
+          <h3 class="font-semibold text-gray-900">What should I pack for safari?</h3>
+          <p class="text-gray-700 text-sm mt-1">Neutral clothing, comfortable footwear, hat, sunscreen, and binoculars are recommended.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Are guided safaris safe?</h3>
+          <p class="text-gray-700 text-sm mt-1">Yes, when park rules and guide instructions are followed at all times.</p>
+        </div>
+      </div>
+
+      <div class="card card-body bg-[#003580] text-white border-0">
+        <h2 class="text-xl font-bold">Need a Specific Answer?</h2>
+        <p class="text-white/80 text-sm mt-2">If your question is not listed here, our support team can help with personalized trip guidance.</p>
+        <div class="mt-5 flex flex-wrap gap-3">
+          <a href="{% url 'core:help' %}" class="btn btn-accent">Browse Help Center</a>
+          <a href="{% url 'core:contact' %}" class="inline-flex items-center justify-center px-6 py-3 rounded-xl border border-white text-white font-semibold hover:bg-white hover:text-[#003580] transition">Contact Us</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

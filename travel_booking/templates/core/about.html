@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}About Us - Marvel Safari{% endblock %}
+{% block meta_description %}Learn about Marvel Safari, your trusted partner for authentic African adventures. Discover our passion for sustainable tourism and commitment to exceptional safari experiences.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-6xl mx-auto space-y-10">
+    <header class="card card-body lg:p-10">
+      <p class="badge badge-info mb-4">Company</p>
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-900">About Marvel Safari</h1>
+      <p class="text-gray-600 mt-4 max-w-3xl">We build travel experiences that connect guests to Africa's landscapes, wildlife, and communities with quality and care.</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+      <article class="card card-body lg:p-10 space-y-5">
+        <h2 class="text-3xl font-bold text-gray-900">Our Story</h2>
+        <p class="text-gray-700">Marvel Safari began with a practical goal: make trusted travel planning across African destinations easier, safer, and more transparent.</p>
+        <p class="text-gray-700">We work with local operators and hospitality partners to offer reliable stays, transport, and guided activities for every traveler profile.</p>
+        <p class="text-gray-700">Our model is built around long-term trust, strong support, and responsible tourism outcomes.</p>
+      </article>
+      <div class="card overflow-hidden">
+        <img src="{% static 'images/about-hero.jpg' %}" alt="African safari landscape" class="w-full h-80 object-cover"
+             onerror="this.src='https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1200&q=80'">
+      </div>
+    </div>
+
+    <section>
+      <h2 class="text-3xl font-bold text-gray-900 text-center mb-8">What Guides Us</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="card card-body text-center">
+          <div class="w-14 h-14 mx-auto rounded-full bg-[#003580] text-[#feba02] flex items-center justify-center mb-4">
+            <i class="fa-solid fa-compass"></i>
+          </div>
+          <h3 class="font-semibold text-gray-900">Authenticity</h3>
+          <p class="text-sm text-gray-600 mt-2">Meaningful local experiences over generic itineraries.</p>
+        </div>
+        <div class="card card-body text-center">
+          <div class="w-14 h-14 mx-auto rounded-full bg-[#003580] text-[#feba02] flex items-center justify-center mb-4">
+            <i class="fa-solid fa-leaf"></i>
+          </div>
+          <h3 class="font-semibold text-gray-900">Sustainability</h3>
+          <p class="text-sm text-gray-600 mt-2">Conservation-minded travel and responsible partnerships.</p>
+        </div>
+        <div class="card card-body text-center">
+          <div class="w-14 h-14 mx-auto rounded-full bg-[#003580] text-[#feba02] flex items-center justify-center mb-4">
+            <i class="fa-solid fa-award"></i>
+          </div>
+          <h3 class="font-semibold text-gray-900">Quality</h3>
+          <p class="text-sm text-gray-600 mt-2">Clear standards for listings, support, and service delivery.</p>
+        </div>
+        <div class="card card-body text-center">
+          <div class="w-14 h-14 mx-auto rounded-full bg-[#003580] text-[#feba02] flex items-center justify-center mb-4">
+            <i class="fa-solid fa-people-group"></i>
+          </div>
+          <h3 class="font-semibold text-gray-900">Community</h3>
+          <p class="text-sm text-gray-600 mt-2">Travel growth that benefits local teams and regions.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card card-body lg:p-10 bg-[#003580] text-white border-0">
+      <h2 class="text-3xl font-bold">Start Planning Your Journey</h2>
+      <p class="text-white/80 mt-2 max-w-3xl">Browse stays, tours, and transport options built for seamless African travel planning.</p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href="{% url 'properties:list' %}" class="btn btn-accent">Explore Stays</a>
+        <a href="{% url 'core:contact' %}" class="inline-flex items-center justify-center px-6 py-3 rounded-xl border border-white text-white font-semibold hover:bg-white hover:text-[#003580] transition">Talk to Our Team</a>
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

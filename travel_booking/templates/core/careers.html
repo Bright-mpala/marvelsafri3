@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Careers - Marvel Safari{% endblock %}
+{% block meta_description %}Join the Marvel Safari team and help create unforgettable African adventures. Explore career opportunities in travel, hospitality, and conservation.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-6xl mx-auto space-y-8">
+    <header class="card card-body lg:p-10">
+      <p class="badge badge-success mb-4">Company</p>
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-900">Careers at Marvel Safari</h1>
+      <p class="text-gray-600 mt-4 max-w-3xl">Help build travel products and services that create meaningful safari experiences and support local ecosystems.</p>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-3">
+      <article class="card card-body lg:col-span-2 space-y-6">
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Why Join Us</h2>
+          <p class="text-gray-700">We combine travel operations, product innovation, and conservation-minded partnerships across Africa.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">What We Value</h2>
+          <ul class="list-disc pl-5 space-y-2 text-gray-700">
+            <li>Strong customer focus and ownership mindset.</li>
+            <li>Respect for local culture, wildlife, and sustainable operations.</li>
+            <li>Clear communication and collaborative execution.</li>
+            <li>Continuous learning and process improvement.</li>
+          </ul>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">How to Apply</h2>
+          <p class="text-gray-700">Send your resume and a short introduction to <a href="mailto:careers@marvelsafari.com" class="text-[#003580] hover:underline">careers@marvelsafari.com</a> with your preferred role area.</p>
+        </section>
+      </article>
+
+      <aside class="space-y-6">
+        <div class="card card-body">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3">Current Status</h3>
+          <p class="text-sm text-gray-700">Open roles are announced periodically. We still accept strong speculative applications.</p>
+        </div>
+        <div class="card card-body bg-[#003580] text-white border-0">
+          <h3 class="text-lg font-semibold mb-2">Hiring Contact</h3>
+          <p class="text-white/80 text-sm">Questions about recruitment timelines or role fit.</p>
+          <a href="mailto:careers@marvelsafari.com" class="btn btn-accent mt-4">Email Careers Team</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

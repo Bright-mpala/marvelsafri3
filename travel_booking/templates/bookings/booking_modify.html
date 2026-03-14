@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Modify Booking - Marvel Safari{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto px-4 py-10">
+    <div class="card card-body">
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Modify booking</h1>
+        <p class="text-sm text-gray-600 mb-6">
+            {{ booking.property.name }} · {{ booking.check_in_date }} to {{ booking.check_out_date }}
+        </p>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+
+            <div>
+                <label for="{{ form.check_in_date.id_for_label }}" class="form-label">Check-in date</label>
+                {{ form.check_in_date }}
+                {% if form.check_in_date.errors %}
+                <p class="text-sm text-red-600 mt-1">{{ form.check_in_date.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="{{ form.check_out_date.id_for_label }}" class="form-label">Check-out date</label>
+                {{ form.check_out_date }}
+                {% if form.check_out_date.errors %}
+                <p class="text-sm text-red-600 mt-1">{{ form.check_out_date.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="{{ form.guests.id_for_label }}" class="form-label">Guests</label>
+                {{ form.guests }}
+                {% if form.guests.errors %}
+                <p class="text-sm text-red-600 mt-1">{{ form.guests.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="{{ form.special_requests.id_for_label }}" class="form-label">Special requests</label>
+                {{ form.special_requests }}
+                {% if form.special_requests.errors %}
+                <p class="text-sm text-red-600 mt-1">{{ form.special_requests.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="btn btn-primary">Save changes</button>
+                <a href="{% url 'bookings:detail' booking.pk %}" class="btn btn-ghost">Cancel</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

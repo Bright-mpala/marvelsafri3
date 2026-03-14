@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Cookie Policy - Marvel Safari{% endblock %}
+{% block meta_description %}Learn about how Marvel Safari uses cookies and similar technologies to improve your browsing experience.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-6xl mx-auto space-y-8">
+    <header class="card card-body lg:p-10">
+      <p class="badge badge-neutral mb-4">Transparency</p>
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-900">Cookie Policy</h1>
+      <p class="text-gray-600 mt-4 max-w-3xl">How cookies and related tracking technologies are used to keep your browsing session useful, secure, and relevant.</p>
+      <p class="text-sm text-gray-500 mt-4">Last updated: {% now "F j, Y" %}</p>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
+      <article class="card card-body lg:p-10 space-y-7">
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">What Cookies Are</h2>
+          <p class="text-gray-700">Cookies are small text files stored by your browser to remember settings and improve site functionality.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Why We Use Cookies</h2>
+          <p class="text-gray-700">Cookies support secure sessions, checkout continuity, account personalization, and service quality analytics.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Cookie Categories</h2>
+          <ul class="list-disc pl-5 space-y-2 text-gray-700">
+            <li><strong>Essential:</strong> Required for authentication, booking flow, and core platform behavior.</li>
+            <li><strong>Performance:</strong> Helps identify errors and optimize speed, stability, and usability.</li>
+            <li><strong>Preference:</strong> Saves selected language, device settings, and browsing preferences.</li>
+            <li><strong>Marketing:</strong> Supports campaign measurement and relevant promotional content.</li>
+          </ul>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Managing Cookies</h2>
+          <p class="text-gray-700">You can control cookies in browser settings. Disabling essential cookies may reduce platform functionality.</p>
+        </section>
+      </article>
+
+      <aside class="space-y-6">
+        <div class="card card-body">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3">Related Policies</h3>
+          <ul class="space-y-2 text-sm">
+            <li><a class="text-[#003580] hover:underline" href="{% url 'core:privacy' %}">Privacy Policy</a></li>
+            <li><a class="text-[#003580] hover:underline" href="{% url 'core:terms' %}">Terms of Service</a></li>
+            <li><a class="text-[#003580] hover:underline" href="{% url 'core:contact' %}">Contact Us</a></li>
+          </ul>
+        </div>
+        <div class="card card-body bg-[#003580] text-white border-0">
+          <h3 class="text-lg font-semibold mb-2">Cookie Questions</h3>
+          <p class="text-white/80 text-sm">Reach out if you need clarification on tracking or consent controls.</p>
+          <a href="{% url 'core:contact' %}" class="btn btn-accent mt-4">Get Assistance</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

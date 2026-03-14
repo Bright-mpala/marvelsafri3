@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Approvals - {{ business_account.company_name }} | Marvel Safari{% endblock %}
+
+{% block extra_head %}
+<style>
+    .approval-shell {
+        background:
+            radial-gradient(circle at top left, rgba(14, 165, 233, 0.08), transparent 34%),
+            radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 28%),
+            linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+    }
+
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(18px);
+    }
+
+    .booking-preview {
+        background: linear-gradient(135deg, #f8fafc 0%, #eef6ff 100%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="approval-shell min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="glass-panel rounded-[28px] border border-white/70 shadow-[0_24px_80px_rgba(15,23,42,0.08)] overflow-hidden">
+            <div class="border-b border-slate-200/70 px-6 py-6 lg:px-8">
+                <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <div class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-white">
+                            <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                            Approval Center
+                        </div>
+                        <h1 class="mt-4 text-3xl font-bold tracking-tight text-slate-900 lg:text-4xl">Travel approvals</h1>
+                        <p class="mt-2 max-w-2xl text-sm text-slate-600">Modernize your approval workflow with faster decisions, clearer booking previews, and visible policy signals.</p>
+                    </div>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <select class="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-4 focus:ring-sky-100" onchange="filterByDepartment(this.value)">
+                            <option value="">All departments</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}" {% if selected_department == dept.id|stringformat:'s' %}selected{% endif %}>{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50" onclick="refreshApprovals()">
+                            <i class="fa-solid fa-rotate-right"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-6 lg:px-8">
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-3xl border border-amber-100 bg-white p-5 shadow-sm">
+                        <p class="text-sm font-medium text-slate-500">Pending review</p>
+                        <p class="mt-3 text-3xl font-bold text-slate-900">{{ pending_count }}</p>
+                        <p class="mt-2 text-xs font-medium text-amber-700">{{ urgent_count }} urgent requests</p>
+                    </div>
+                    <div class="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
+                        <p class="text-sm font-medium text-slate-500">Approved today</p>
+                        <p class="mt-3 text-3xl font-bold text-slate-900">{{ approved_today }}</p>
+                        <p class="mt-2 text-xs font-medium text-emerald-700">{{ this_week_approved }} this week</p>
+                    </div>
+                    <div class="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm">
+                        <p class="text-sm font-medium text-slate-500">Average response</p>
+                        <p class="mt-3 text-3xl font-bold text-slate-900">{{ avg_response_time }}h</p>
+                        <p class="mt-2 text-xs font-medium text-sky-700">Keep approvals moving</p>
+                    </div>
+                    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <p class="text-sm font-medium text-slate-500">Approval rate</p>
+                        <p class="mt-3 text-3xl font-bold text-slate-900">{{ approval_rate }}%</p>
+                        <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-full rounded-full bg-slate-900" style="width: {{ approval_rate }}%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_360px]">
+                    <div class="space-y-5">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-semibold text-slate-900">Approval queue</h2>
+                                <p class="mt-1 text-sm text-slate-500">{{ pending_approvals|length }} requests awaiting review</p>
+                            </div>
+                            <span class="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Pending</span>
+                        </div>
+
+                        {% for approval in pending_approvals %}
+                        <article class="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_20px_50px_rgba(15,23,42,0.10)]">
+                            <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-start gap-4">
+                                        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-lg font-bold uppercase text-white">
+                                            {{ approval.employee.user.get_full_name|default:approval.employee.user.email|slice:":1" }}
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <h3 class="truncate text-lg font-semibold text-slate-900">{{ approval.employee.user.get_full_name|default:approval.employee.user.email }}</h3>
+                                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Pending</span>
+                                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Level {{ approval.approval_level }}</span>
+                                            </div>
+                                            <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                                                <span>{{ approval.employee.job_title|default:"Employee" }}</span>
+                                                <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">{{ approval.employee.department.name|default:"Unassigned Department" }}</span>
+                                                <span>Submitted {{ approval.created_at|timesince }} ago</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="booking-preview mt-5 rounded-3xl border border-slate-200 p-4">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div class="min-w-0">
+                                                {% if approval.flight_booking %}
+                                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Flight request</p>
+                                                <p class="mt-1 text-base font-semibold text-slate-900">{{ approval.flight_booking.flight_schedule.flight.origin.iata_code }} to {{ approval.flight_booking.flight_schedule.flight.destination.iata_code }}</p>
+                                                <p class="mt-1 text-sm text-slate-600">{{ approval.flight_booking.flight_schedule.flight.origin.city }} to {{ approval.flight_booking.flight_schedule.flight.destination.city }}</p>
+                                                <p class="mt-1 text-sm text-slate-500">{{ approval.flight_booking.flight_schedule.departure_date|date:"M d, Y" }} at {{ approval.flight_booking.flight_schedule.flight.departure_time|time:"H:i" }}</p>
+                                                <p class="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Total</p>
+                                                <p class="text-2xl font-bold text-slate-900">${{ approval.flight_booking.total_amount|floatformat:2 }}</p>
+                                                {% elif approval.car_rental_booking %}
+                                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Car rental</p>
+                                                <p class="mt-1 text-base font-semibold text-slate-900">{{ approval.car_rental_booking.pickup_location.city }} to {{ approval.car_rental_booking.dropoff_location.city }}</p>
+                                                <p class="mt-1 text-sm text-slate-600">{{ approval.car_rental_booking.rental_days }} day rental for {{ approval.car_rental_booking.driver_name }}</p>
+                                                <p class="mt-1 text-sm text-slate-500">{{ approval.car_rental_booking.pickup_date|date:"M d, Y" }} to {{ approval.car_rental_booking.dropoff_date|date:"M d, Y" }}</p>
+                                                <p class="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Total</p>
+                                                <p class="text-2xl font-bold text-slate-900">${{ approval.car_rental_booking.total_amount|floatformat:2 }}</p>
+                                                {% elif approval.tour_booking %}
+                                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Tour booking</p>
+                                                <p class="mt-1 text-base font-semibold text-slate-900">{{ approval.tour_booking.tour.name }}</p>
+                                                <p class="mt-1 text-sm text-slate-600">{{ approval.tour_booking.tour.city }}, {{ approval.tour_booking.tour.country }}</p>
+                                                <p class="mt-1 text-sm text-slate-500">{{ approval.tour_booking.participant_count }} participant{{ approval.tour_booking.participant_count|pluralize }}</p>
+                                                <p class="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Total</p>
+                                                <p class="text-2xl font-bold text-slate-900">${{ approval.tour_booking.total_amount|floatformat:2 }}</p>
+                                                {% elif approval.booking %}
+                                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Property stay</p>
+                                                <p class="mt-1 text-base font-semibold text-slate-900">{{ approval.booking.property.name|default:"Accommodation request" }}</p>
+                                                <p class="mt-1 text-sm text-slate-600">{{ approval.booking.property.city|default:"Destination pending" }}{% if approval.booking.property.country %}, {{ approval.booking.property.country }}{% endif %}</p>
+                                                <p class="mt-1 text-sm text-slate-500">{{ approval.booking.check_in_date|date:"M d, Y" }} to {{ approval.booking.check_out_date|date:"M d, Y" }}</p>
+                                                <p class="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Total</p>
+                                                <p class="text-2xl font-bold text-slate-900">${{ approval.booking.total_amount|floatformat:2 }}</p>
+                                                {% else %}
+                                                <p class="text-base font-semibold text-slate-900">Booking details unavailable</p>
+                                                {% endif %}
+                                            </div>
+                                            <div class="shrink-0 text-right">
+                                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Reference</p>
+                                                <p class="mt-1 text-sm font-medium text-slate-700">{{ approval.get_booking_reference }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4 flex flex-wrap gap-2">
+                                        <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">Approver: {{ approval.approver.get_full_name|default:approval.approver.email }}</span>
+                                        {% if approval.employee.department and approval.employee.department.requires_approval %}
+                                        <span class="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700"><i class="fa-solid fa-shield-halved mr-1.5"></i>Department approval required</span>
+                                        {% endif %}
+                                        {% if approval.flight_booking and policy and policy.max_flight_cost and approval.flight_booking.total_amount > policy.max_flight_cost %}
+                                        <span class="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Above flight policy threshold</span>
+                                        {% endif %}
+                                        {% if approval.booking and policy and policy.max_hotel_cost_per_night and approval.booking.price_per_night > policy.max_hotel_cost_per_night %}
+                                        <span class="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Nightly stay is above hotel policy</span>
+                                        {% endif %}
+                                        {% if approval.car_rental_booking and policy and policy.max_car_rental_cost_per_day and approval.car_rental_booking.daily_rate > policy.max_car_rental_cost_per_day %}
+                                        <span class="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Daily rental rate is above policy</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="w-full shrink-0 lg:w-[240px]">
+                                    <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                        <p class="text-sm font-semibold text-slate-900">Quick actions</p>
+                                        <p class="mt-2 text-sm text-slate-500">Approve, reject, or escalate directly from the queue.</p>
+                                        {% if can_approve %}
+                                        <div class="mt-4 grid gap-2">
+                                            <button class="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700" onclick="approveBooking('{{ approval.id }}')"><i class="fa-regular fa-circle-check"></i>Quick approve</button>
+                                            <button class="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white hover:bg-rose-700" onclick="rejectBooking('{{ approval.id }}')"><i class="fa-regular fa-circle-xmark"></i>Quick reject</button>
+                                            <button class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100" onclick="escalateBooking('{{ approval.id }}')"><i class="fa-solid fa-arrow-up-right-dots"></i>Escalate</button>
+                                        </div>
+                                        {% else %}
+                                        <div class="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">Awaiting assigned approver.</div>
+                                        {% endif %}
+                                        <a href="{% url 'business:approval_detail' approval.id %}" class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800">Open request <i class="fa-solid fa-arrow-right text-xs"></i></a>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                        {% empty %}
+                        <div class="rounded-[26px] border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
+                            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-100 text-emerald-600">
+                                <i class="fa-regular fa-circle-check text-2xl"></i>
+                            </div>
+                            <h3 class="mt-5 text-xl font-semibold text-slate-900">No pending approvals</h3>
+                            <p class="mt-2 text-sm text-slate-500">The queue is clear. New requests will appear here as employees submit bookings.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <aside class="space-y-6">
+                        <div class="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
+                            <h3 class="text-lg font-semibold text-slate-900">Approval performance</h3>
+                            <div class="mt-5 space-y-4">
+                                <div class="rounded-2xl bg-slate-50 p-4">
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-slate-500">This week</span>
+                                        <span class="font-semibold text-slate-900">{{ this_week_approved }} approved</span>
+                                    </div>
+                                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                                        <div class="h-full rounded-full bg-emerald-500" style="width: {{ approval_rate }}%"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                                    <span class="text-sm text-slate-500">Average approval time</span>
+                                    <span class="text-sm font-semibold text-slate-900">{{ avg_response_time }} hours</span>
+                                </div>
+                                <div class="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                                    <span class="text-sm text-slate-500">Top approver</span>
+                                    <span class="text-sm font-semibold text-slate-900">{{ top_approver_name }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
+                            <h3 class="text-lg font-semibold text-slate-900">Recent decisions</h3>
+                            <div class="mt-5 space-y-3">
+                                {% for approval in recent_approved %}
+                                <div class="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
+                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 font-semibold uppercase text-emerald-700">{{ approval.employee.user.get_full_name|default:approval.employee.user.email|slice:":1" }}</div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="truncate text-sm font-semibold text-slate-900">{{ approval.employee.user.get_full_name|default:approval.employee.user.email }}</p>
+                                        <p class="truncate text-xs text-slate-500">Approved by {{ approval.approver.get_full_name|default:approval.approver.email }}</p>
+                                    </div>
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Approved</span>
+                                </div>
+                                {% empty %}
+                                <div class="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No recent approvals yet.</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="rounded-[26px] border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-5 shadow-sm">
+                            <h3 class="text-lg font-semibold text-slate-900">Policy watch</h3>
+                            <p class="mt-1 text-sm text-slate-600">Surface policy reminders and exception risk at a glance.</p>
+                            {% if policy %}
+                            <div class="mt-5 space-y-3">
+                                {% if policy.max_flight_cost %}<div class="rounded-2xl border border-amber-200 bg-white/80 p-3 text-sm text-slate-700">Flights above ${{ policy.max_flight_cost|floatformat:0 }} should be reviewed carefully.</div>{% endif %}
+                                {% if policy.max_hotel_cost_per_night %}<div class="rounded-2xl border border-amber-200 bg-white/80 p-3 text-sm text-slate-700">Nightly accommodation target: ${{ policy.max_hotel_cost_per_night|floatformat:0 }} or less.</div>{% endif %}
+                                {% if policy.max_car_rental_cost_per_day %}<div class="rounded-2xl border border-amber-200 bg-white/80 p-3 text-sm text-slate-700">Car rental daily cap: ${{ policy.max_car_rental_cost_per_day|floatformat:0 }}.</div>{% endif %}
+                                <div class="rounded-2xl border border-amber-200 bg-white/80 p-3 text-sm text-slate-700">Advance booking rule: {{ policy.advance_booking_days }} days.</div>
+                            </div>
+                            {% else %}
+                            <div class="mt-5 rounded-2xl border border-dashed border-amber-200 bg-white/70 p-4 text-sm text-slate-700">No travel policy is configured yet. Add one to unlock stronger policy violation warnings.</div>
+                            {% endif %}
+                            <a href="{% url 'business:policies' %}" class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800">View policy settings <i class="fa-solid fa-arrow-right text-xs"></i></a>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'business/approval_modal.html' %}
+
+<script>
+function approveBooking(approvalId) {
+    openApprovalModal('approve', approvalId);
+}
+
+function rejectBooking(approvalId) {
+    openApprovalModal('reject', approvalId);
+}
+
+function escalateBooking(approvalId) {
+    openApprovalModal('escalate', approvalId);
+}
+
+function filterByDepartment(deptId) {
+    if (deptId) {
+        window.location.href = `?department=${deptId}`;
+    } else {
+        window.location.href = window.location.pathname;
+    }
+}
+
+function refreshApprovals() {
+    location.reload();
+}
+</script>
+{% endblock %}

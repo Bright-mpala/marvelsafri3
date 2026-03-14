@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Invoice {{ booking.id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; color: #0f172a; margin: 40px; }
+        h1, h2 { margin-bottom: 8px; }
+        .muted { color: #64748b; }
+        .card { border: 1px solid #dbe2ea; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .row { display: flex; justify-content: space-between; margin: 6px 0; }
+        .total { font-size: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Booking Invoice</h1>
+    <p class="muted">Invoice for booking #{{ booking.id }} | Generated {{ generated_at|date:'M d, Y H:i' }}</p>
+
+    <div class="card">
+        <h2>Stay details</h2>
+        <p><strong>{{ booking.property.name }}</strong></p>
+        {% if booking.room_type %}<p>Room type: {{ booking.room_type.name }}</p>{% endif %}
+        <div class="row"><span>{{ booking.nights_count }} night{{ booking.nights_count|pluralize }} x ${{ booking.price_per_night }}</span><span>${{ booking.total_price }}</span></div>
+        <div class="row"><span>Commission</span><span>${{ booking.platform_commission }}</span></div>
+        {% if booking.refunded_total %}
+        <div class="row"><span>Refunded</span><span>${{ booking.refunded_total }}</span></div>
+        {% endif %}
+        <div class="row total"><span>Total charged</span><span>${{ booking.total_price }}</span></div>
+    </div>
+
+    <div class="card">
+        <h2>Payment status</h2>
+        <div class="row"><span>Method</span><strong>{{ booking.get_payment_option_display|default:'Not selected' }}</strong></div>
+        <div class="row"><span>Payment</span><strong>{{ booking.payment_summary }}</strong></div>
+        <div class="row"><span>Refund</span><strong>{{ booking.refund_summary }}</strong></div>
+    </div>
+
+    <p class="muted">Support: {{ support_email }}</p>
+</body>
+</html>

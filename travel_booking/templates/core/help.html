@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Help Center - Marvel Safari{% endblock %}
+{% block meta_description %}Find answers to common questions about bookings, payments, travel requirements, and more. Get help with your Marvel Safari experience.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-6xl mx-auto space-y-8">
+    <header class="card card-body lg:p-10">
+      <p class="badge badge-info mb-4">Support</p>
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-900">Help Center</h1>
+      <p class="text-gray-600 mt-4 max-w-3xl">Quick guidance for bookings, payment, travel preparation, and account management.</p>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-3">
+      <article class="card card-body lg:col-span-2 space-y-6">
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Getting Started</h2>
+          <p class="text-gray-700">Search for stays, tours, and transport, then complete checkout with your traveler details and preferred payment method.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Booking Management</h2>
+          <p class="text-gray-700">Changes depend on supplier terms. Use your account dashboard to review status, then contact support for modifications.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Payments and Security</h2>
+          <p class="text-gray-700">Transactions are processed through secure channels. Always confirm supplier policies before paying.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Travel Documents</h2>
+          <p class="text-gray-700">Visa, passport, and health requirements vary by country. Verify official entry requirements before departure.</p>
+        </section>
+      </article>
+
+      <aside class="space-y-6">
+        <div class="card card-body">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3">Popular Destinations</h3>
+          <ul class="text-sm text-gray-700 space-y-2">
+            <li><a class="hover:text-[#003580]" href="{% url 'properties:list' %}?country=Kenya">Kenya Safaris</a></li>
+            <li><a class="hover:text-[#003580]" href="{% url 'properties:list' %}?country=Tanzania">Tanzania Lodges</a></li>
+            <li><a class="hover:text-[#003580]" href="{% url 'tours:tour_list' %}">Guided Tours</a></li>
+          </ul>
+        </div>
+        <div class="card card-body bg-[#003580] text-white border-0">
+          <h3 class="text-lg font-semibold mb-2">Still Need Help?</h3>
+          <p class="text-white/80 text-sm">Our support team can help with urgent booking and trip questions.</p>
+          <a href="{% url 'core:contact' %}" class="btn btn-accent mt-4">Contact Support</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

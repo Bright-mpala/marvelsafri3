@@ -1,0 +1,1412 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}List Your Property — Marvel Safari{% endblock %}
+
+{% block extra_head %}
+<!-- Flatpickr for map coordinate picker UX -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<style>
+/* ═══════════════════════════════════════════
+   DESIGN SYSTEM
+═══════════════════════════════════════════ */
+:root {
+  --navy:       #0b1f2e;
+  --navy-mid:   #0f2d3f;
+  --navy-light: #123754;
+  --accent:     #f6b17a;
+  --accent-dk:  #e89c60;
+  --blue:       #0071c2;
+  --blue-dk:    #003580;
+  --green:      #10b981;
+  --amber:      #f59e0b;
+  --red:        #ef4444;
+  --gray-50:    #f9fafb;
+  --gray-100:   #f3f4f6;
+  --gray-200:   #e5e7eb;
+  --gray-300:   #d1d5db;
+  --gray-500:   #6b7280;
+  --gray-700:   #374151;
+  --gray-900:   #111827;
+  --radius:     0.75rem;
+  --radius-lg:  1rem;
+  --radius-xl:  1.5rem;
+  --shadow:     0 4px 20px rgba(0,0,0,0.08);
+  --shadow-lg:  0 12px 40px rgba(0,0,0,0.14);
+}
+
+/* ── Global resets ── */
+*, *::before, *::after { box-sizing: border-box; }
+#mainHeader, footer.bg-gray-900 { display: none !important; }
+
+body {
+  background: linear-gradient(160deg, #f0f7f4 0%, #e8f4fb 50%, #f0f0f7 100%);
+  font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+  color: var(--gray-900);
+  min-height: 100vh;
+}
+
+/* ── Shell layout ── */
+.wizard-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+@media (max-width: 900px) {
+  .wizard-shell { grid-template-columns: 1fr; }
+}
+
+/* ── Left sidebar ── */
+.wizard-sidebar {
+  background: var(--navy);
+  color: #fff;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+@media (max-width: 900px) { .wizard-sidebar { display: none; } }
+
+.sidebar-brand {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 2.5rem;
+}
+.sidebar-brand-icon {
+  width: 2.5rem; height: 2.5rem; border-radius: 0.5rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dk));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; color: var(--navy);
+}
+.sidebar-brand-name { font-weight: 700; font-size: 1.1rem; }
+.sidebar-brand-sub  { font-size: 0.7rem; color: rgba(255,255,255,0.5); }
+
+.sidebar-steps { flex: 1; }
+.sidebar-step {
+  display: flex; align-items: flex-start; gap: 1rem;
+  padding: 0.875rem 1rem; border-radius: 0.625rem;
+  margin-bottom: 0.25rem; cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+.sidebar-step::after {
+  content: '';
+  position: absolute; left: 1.875rem; top: 3.25rem;
+  width: 2px; height: calc(100% - 1rem);
+  background: rgba(255,255,255,0.1);
+}
+.sidebar-step:last-child::after { display: none; }
+.sidebar-step.active { background: rgba(246,177,122,0.15); }
+.sidebar-step.completed .step-num { background: var(--green); border-color: var(--green); }
+.sidebar-step.completed .step-num i { display: inline; }
+.sidebar-step.completed .step-num span { display: none; }
+
+.step-num {
+  width: 1.75rem; height: 1.75rem; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; color: rgba(255,255,255,0.6);
+  flex-shrink: 0; transition: all 0.3s;
+}
+.sidebar-step.active .step-num {
+  border-color: var(--accent); color: var(--accent);
+  background: rgba(246,177,122,0.1);
+}
+.step-num i { display: none; color: white; font-size: 0.7rem; }
+.step-info { padding-top: 0.1rem; }
+.step-info-label {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: rgba(255,255,255,0.4);
+}
+.step-info-name {
+  font-size: 0.9rem; font-weight: 500; color: rgba(255,255,255,0.85);
+}
+.sidebar-step.active .step-info-name { color: var(--accent); }
+
+.sidebar-trust {
+  margin-top: auto; padding-top: 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.trust-item {
+  display: flex; align-items: center; gap: 0.625rem;
+  font-size: 0.8rem; color: rgba(255,255,255,0.55);
+  margin-bottom: 0.625rem;
+}
+.trust-item i { color: var(--accent); width: 1rem; }
+
+/* ── Right main content ── */
+.wizard-main {
+  padding: 2rem 2.5rem 3rem;
+  max-width: 780px;
+}
+@media (max-width: 900px) { .wizard-main { padding: 1.5rem 1rem; max-width: 100%; } }
+
+/* ── Mobile progress bar ── */
+.mobile-progress {
+  display: none; background: white;
+  border-radius: var(--radius-lg); padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem; box-shadow: var(--shadow);
+}
+@media (max-width: 900px) { .mobile-progress { display: block; } }
+.mobile-progress-bar {
+  height: 4px; background: var(--gray-200); border-radius: 2px; margin-top: 0.5rem;
+}
+.mobile-progress-fill {
+  height: 100%; background: var(--blue); border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* ── Section wrapper ── */
+.form-section { display: none; animation: fadeSlide 0.3s ease; }
+.form-section.active { display: block; }
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.section-header { margin-bottom: 2rem; }
+.section-eyebrow {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--blue); margin-bottom: 0.25rem;
+}
+.section-title {
+  font-size: 1.75rem; font-weight: 800; color: var(--gray-900);
+  letter-spacing: -0.02em; line-height: 1.2;
+}
+.section-desc { font-size: 0.95rem; color: var(--gray-500); margin-top: 0.4rem; }
+
+/* ── Cards ── */
+.card {
+  background: white; border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200); box-shadow: var(--shadow);
+  padding: 1.75rem; margin-bottom: 1.25rem;
+}
+.card-title {
+  font-size: 0.875rem; font-weight: 700; color: var(--gray-700);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem;
+}
+.card-title i { color: var(--blue); }
+
+/* ── Form controls ── */
+.field { margin-bottom: 1.25rem; }
+.field label {
+  display: block; font-size: 0.875rem; font-weight: 600;
+  color: var(--gray-700); margin-bottom: 0.375rem;
+}
+.field label .req { color: var(--red); margin-left: 2px; }
+
+.control {
+  width: 100%; padding: 0.6875rem 0.875rem;
+  border: 1.5px solid var(--gray-300); border-radius: var(--radius);
+  font-size: 0.95rem; color: var(--gray-900); background: white;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.control:hover { border-color: var(--gray-500); }
+.control:focus {
+  outline: none; border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0,113,194,0.12);
+}
+.control.is-invalid { border-color: var(--red); background: #fff5f5; }
+textarea.control { min-height: 110px; resize: vertical; }
+select.control {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.875rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+.field-hint {
+  font-size: 0.8rem; color: var(--gray-500);
+  margin-top: 0.375rem; display: flex; align-items: center; gap: 0.35rem;
+}
+.field-error {
+  font-size: 0.8rem; color: var(--red);
+  margin-top: 0.375rem; display: flex; align-items: center; gap: 0.35rem;
+}
+
+.char-count { margin-left: auto; font-size: 0.75rem; color: var(--gray-500); }
+.char-count.warn { color: var(--amber); }
+.char-count.ok   { color: var(--green); }
+
+/* ── Grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+.col-span-2 { grid-column: span 2; }
+@media (max-width: 640px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .col-span-2 { grid-column: span 1; }
+}
+
+/* ── Price input group ── */
+.price-group {
+  display: flex; align-items: center;
+  border: 1.5px solid var(--gray-300); border-radius: var(--radius);
+  overflow: hidden; background: white;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.price-group:focus-within {
+  border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,113,194,0.12);
+}
+.price-prefix {
+  padding: 0 0.875rem; background: var(--gray-100);
+  color: var(--gray-700); font-weight: 600; font-size: 0.9rem;
+  border-right: 1.5px solid var(--gray-300);
+  line-height: 2.875rem; white-space: nowrap;
+}
+.price-group .control {
+  border: none; border-radius: 0; padding-left: 0.75rem;
+  box-shadow: none !important;
+}
+
+/* ── Star rating picker ── */
+.star-picker { display: flex; gap: 0.375rem; }
+.star-opt input { display: none; }
+.star-opt label {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.875rem; border: 1.5px solid var(--gray-200);
+  border-radius: 2rem; font-size: 0.85rem; font-weight: 500;
+  color: var(--gray-600); cursor: pointer; transition: all 0.15s;
+}
+.star-opt label:hover { border-color: var(--amber); color: var(--amber); }
+.star-opt input:checked + label {
+  background: #fffbeb; border-color: var(--amber); color: var(--amber);
+}
+
+/* ── Amenity pills ── */
+.pill-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pill input { display: none; }
+.pill label {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.4rem 0.875rem; background: var(--gray-100);
+  border: 1.5px solid var(--gray-200); border-radius: 2rem;
+  font-size: 0.85rem; font-weight: 500; color: var(--gray-600);
+  cursor: pointer; transition: all 0.15s; user-select: none;
+}
+.pill label:hover { border-color: var(--blue); color: var(--blue); background: #eff6ff; }
+.pill input:checked + label {
+  background: #eff6ff; border-color: var(--blue); color: var(--blue-dk);
+}
+
+/* ── Payment method cards ── */
+.payment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.875rem; }
+@media (max-width: 500px) { .payment-grid { grid-template-columns: 1fr; } }
+.pay-card input { display: none; }
+.pay-card label {
+  display: flex; align-items: center; gap: 0.875rem;
+  padding: 1rem 1.125rem; border: 2px solid var(--gray-200);
+  border-radius: var(--radius); cursor: pointer; background: white;
+  transition: all 0.2s; position: relative; overflow: hidden;
+}
+.pay-card label::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  opacity: 0; transition: opacity 0.2s;
+}
+.pay-card label:hover { border-color: var(--blue); }
+.pay-card label:hover::before { opacity: 1; }
+.pay-card input:checked + label {
+  border-color: var(--blue-dk);
+  box-shadow: 0 0 0 3px rgba(0,53,128,0.1);
+}
+.pay-card input:checked + label::before { opacity: 1; }
+.pay-icon {
+  width: 2.5rem; height: 2.5rem; border-radius: 0.5rem;
+  background: var(--gray-100); display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; color: var(--blue); flex-shrink: 0;
+  transition: background 0.2s; position: relative; z-index: 1;
+}
+.pay-card input:checked + label .pay-icon { background: #dbeafe; color: var(--blue-dk); }
+.pay-info { flex: 1; position: relative; z-index: 1; }
+.pay-name { font-weight: 700; font-size: 0.9rem; color: var(--gray-900); }
+.pay-desc { font-size: 0.75rem; color: var(--gray-500); margin-top: 0.1rem; }
+.pay-check {
+  width: 1.25rem; height: 1.25rem; border-radius: 50%;
+  border: 2px solid var(--gray-300); background: white;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; position: relative; z-index: 1; transition: all 0.2s;
+}
+.pay-card input:checked + label .pay-check {
+  background: var(--blue-dk); border-color: var(--blue-dk);
+}
+.pay-check::after {
+  content: ''; width: 0.35rem; height: 0.6rem;
+  border: 2px solid white; border-top: none; border-left: none;
+  transform: rotate(45deg) translateY(-1px);
+  opacity: 0; transition: opacity 0.15s;
+}
+.pay-card input:checked + label .pay-check::after { opacity: 1; }
+
+/* ── Photo upload ── */
+.drop-zone {
+  border: 2px dashed var(--gray-300); border-radius: var(--radius-lg);
+  padding: 2.5rem; text-align: center; cursor: pointer;
+  transition: all 0.25s; background: var(--gray-50);
+}
+.drop-zone:hover, .drop-zone.over {
+  border-color: var(--blue); background: #eff6ff;
+}
+.drop-icon {
+  width: 3.5rem; height: 3.5rem; border-radius: 50%;
+  background: white; box-shadow: var(--shadow);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: var(--blue); margin: 0 auto 1rem;
+}
+.drop-title { font-size: 1rem; font-weight: 700; color: var(--gray-800); margin-bottom: 0.25rem; }
+.drop-sub   { font-size: 0.875rem; color: var(--gray-500); }
+.drop-meta  { display: flex; justify-content: center; gap: 1.25rem; margin-top: 0.875rem; }
+.drop-meta span {
+  font-size: 0.8rem; color: var(--gray-600);
+  display: flex; align-items: center; gap: 0.3rem;
+}
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px,1fr));
+  gap: 0.75rem; margin-top: 1.25rem;
+}
+.preview-item {
+  position: relative; border-radius: var(--radius);
+  aspect-ratio: 1; overflow: hidden; background: var(--gray-100);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.preview-item img { width: 100%; height: 100%; object-fit: cover; }
+.preview-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0); 
+  display: flex; align-items: flex-start; justify-content: flex-end;
+  padding: 0.5rem; gap: 0.375rem; transition: background 0.2s;
+}
+.preview-item:hover .preview-overlay { background: rgba(0,0,0,0.3); }
+.prev-btn {
+  width: 1.75rem; height: 1.75rem; border-radius: 50%;
+  background: white; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; color: var(--gray-700); opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.preview-item:hover .prev-btn { opacity: 1; }
+.prev-btn:hover { transform: scale(1.1); }
+.prev-btn.del:hover { background: var(--red); color: white; }
+.cover-badge {
+  position: absolute; bottom: 0.5rem; left: 0.5rem;
+  background: var(--navy); color: white; font-size: 0.7rem;
+  font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 0.25rem;
+}
+
+/* ── Map picker ── */
+#coord-map { height: 260px; border-radius: var(--radius); overflow: hidden; border: 1.5px solid var(--gray-200); }
+
+/* ── Room type builder ── */
+.room-card {
+  border: 1.5px solid var(--gray-200); border-radius: var(--radius-lg);
+  padding: 1.25rem; margin-bottom: 1rem; background: white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.room-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.room-card-title { font-weight: 700; font-size: 0.95rem; color: var(--gray-800); }
+.remove-room {
+  width: 2rem; height: 2rem; border-radius: 50%; border: none;
+  background: var(--gray-100); color: var(--gray-500); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
+  transition: all 0.15s;
+}
+.remove-room:hover { background: #fee2e2; color: var(--red); }
+
+.add-room-btn {
+  width: 100%; padding: 0.75rem; border-radius: var(--radius);
+  border: 2px dashed var(--gray-300); background: transparent;
+  color: var(--gray-600); font-weight: 600; font-size: 0.9rem;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+}
+.add-room-btn:hover { border-color: var(--blue); color: var(--blue); background: #eff6ff; }
+
+/* ── Verification list ── */
+.verify-item {
+  display: flex; align-items: flex-start; gap: 0.875rem;
+  padding: 0.875rem; border-radius: var(--radius);
+  border: 1.5px solid var(--gray-200); margin-bottom: 0.625rem;
+  background: white; cursor: pointer; transition: border-color 0.15s;
+}
+.verify-item:has(input:checked) { border-color: var(--green); background: #f0fdf4; }
+.verify-item input[type="checkbox"] {
+  width: 1.125rem; height: 1.125rem; margin-top: 0.1rem;
+  accent-color: var(--green); cursor: pointer; flex-shrink: 0;
+}
+.verify-item label { font-size: 0.9rem; color: var(--gray-700); cursor: pointer; line-height: 1.5; }
+.verify-item strong { color: var(--navy); }
+
+/* ── Alert ── */
+.alert {
+  padding: 0.875rem 1.125rem; border-radius: var(--radius);
+  display: flex; gap: 0.75rem; align-items: flex-start;
+  font-size: 0.875rem; margin-bottom: 1.25rem;
+}
+.alert i { flex-shrink: 0; margin-top: 0.1rem; }
+.alert-info    { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+.alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.alert-danger  { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+
+/* ── Navigation buttons ── */
+.wizard-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200);
+  gap: 0.75rem;
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 1.375rem; border-radius: var(--radius);
+  font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  transition: all 0.2s; border: none; text-decoration: none;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-ghost {
+  background: white; border: 1.5px solid var(--gray-300); color: var(--gray-700);
+}
+.btn-ghost:hover:not(:disabled) { border-color: var(--gray-500); background: var(--gray-50); }
+.btn-primary {
+  background: var(--navy); color: white;
+  box-shadow: 0 2px 12px rgba(11,31,46,0.35);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--navy-light); transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(11,31,46,0.45);
+}
+.btn-accent {
+  background: var(--accent); color: var(--navy); font-weight: 700;
+  box-shadow: 0 2px 12px rgba(246,177,122,0.4);
+}
+.btn-accent:hover:not(:disabled) {
+  background: var(--accent-dk); transform: translateY(-1px);
+}
+.btn-success {
+  background: var(--green); color: white;
+  box-shadow: 0 2px 12px rgba(16,185,129,0.35);
+}
+
+.nav-right { display: flex; align-items: center; gap: 0.75rem; }
+
+/* ── Errors panel ── */
+.errors-banner {
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius);
+  padding: 1rem 1.25rem; margin-bottom: 1.5rem;
+}
+.errors-banner ul { margin: 0.5rem 0 0 1.25rem; }
+.errors-banner li { font-size: 0.875rem; color: var(--red); margin-bottom: 0.25rem; }
+
+/* ── Listing fee toggle ── */
+.fee-panel { display: none; margin-top: 1rem; }
+.fee-panel.show { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard-shell">
+
+  <!-- ══ SIDEBAR ══════════════════════════════════════════ -->
+  <aside class="wizard-sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon"><i class="fas fa-compass"></i></div>
+      <div>
+        <div class="sidebar-brand-name">Marvel Safari</div>
+        <div class="sidebar-brand-sub">List your property</div>
+      </div>
+    </div>
+
+    <div class="sidebar-steps">
+      {% for step_num, step_label, step_icon in steps %}
+      <div class="sidebar-step {% if forloop.first %}active{% endif %}" data-sidebar-step="{{ step_num }}">
+        <div class="step-num">
+          <i class="fas fa-check"></i>
+          <span>{{ step_num }}</span>
+        </div>
+        <div class="step-info">
+          <div class="step-info-label">Step {{ step_num }}</div>
+          <div class="step-info-name">{{ step_label }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="sidebar-trust">
+      <div class="trust-item"><i class="fas fa-shield-alt"></i> All listings are manually reviewed</div>
+      <div class="trust-item"><i class="fas fa-lock"></i> Your data is encrypted & secure</div>
+      <div class="trust-item"><i class="fas fa-headset"></i> 24/7 host support available</div>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN WIZARD ══════════════════════════════════════ -->
+  <main class="wizard-main">
+
+    <!-- Mobile progress -->
+    <div class="mobile-progress">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span id="mobile-step-label" style="font-size:0.9rem;font-weight:700;color:var(--gray-800)">Step 1 of {{ steps|length }}</span>
+        <span id="mobile-step-name" style="font-size:0.8rem;color:var(--gray-500)">Basic Information</span>
+      </div>
+      <div class="mobile-progress-bar">
+        <div class="mobile-progress-fill" id="mobile-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Django non-field errors -->
+    {% if form.errors %}
+    <div class="errors-banner">
+      <div style="font-weight:700;color:var(--red);display:flex;align-items:center;gap:0.5rem;">
+        <i class="fas fa-exclamation-circle"></i> Please fix the following errors:
+      </div>
+      <ul>
+        {% for field in form %}
+          {% for error in field.errors %}
+          <li>{{ field.label }}: {{ error }}</li>
+          {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="propertyForm" novalidate>
+      {% csrf_token %}
+
+      <!-- ════ STEP 1: BASICS ═════════════════════════════ -->
+      <div class="form-section active" data-section="1">
+        <div class="section-header">
+          <div class="section-eyebrow"><i class="fas fa-home"></i> &nbsp;Step 1</div>
+          <div class="section-title">Tell us about your property</div>
+          <div class="section-desc">Start with the essentials — name, type, and a compelling description.</div>
+        </div>
+
+        <div class="card">
+          <div class="field">
+            <label>Property Name <span class="req">*</span></label>
+            <input type="text" name="name" id="id_name" class="control {% if form.name.errors %}is-invalid{% endif %}"
+                   placeholder="e.g., Serengeti Sky Safari Lodge"
+                   value="{{ form.name.value|default:'' }}" required maxlength="255">
+            <div class="field-hint">
+              <i class="fas fa-info-circle"></i> Choose a name that stands out and reflects your property's character
+              <span class="char-count" id="name-count"></span>
+            </div>
+            {% for e in form.name.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="field">
+            <label>Description <span class="req">*</span></label>
+            <textarea name="description" id="id_description" class="control {% if form.description.errors %}is-invalid{% endif %}"
+                      placeholder="Describe your property, unique features, nearby attractions, and what makes it special for guests..."
+                      required minlength="50" style="min-height:130px;">{{ form.description.value|default:'' }}</textarea>
+            <div class="field-hint">
+              <i class="fas fa-info-circle"></i> Minimum 50 characters — make it memorable
+              <span class="char-count" id="desc-count"></span>
+            </div>
+            {% for e in form.description.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label>Property Type <span class="req">*</span></label>
+              <select name="property_type" id="id_property_type" class="control {% if form.property_type.errors %}is-invalid{% endif %}" required>
+                <option value="">Select type…</option>
+                {% with sel=form.property_type.value|stringformat:"s" %}
+                  {% for pt in form.fields.property_type.queryset %}
+                  <option value="{{ pt.pk }}" {% if sel == pt.pk|stringformat:"s" %}selected{% endif %}>{{ pt.name }}</option>
+                  {% endfor %}
+                {% endwith %}
+              </select>
+              {% for e in form.property_type.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="field">
+              <label>Official Star Rating</label>
+              <div class="star-picker">
+                {% for val, label in form.fields.star_rating.choices %}{% if val %}
+                <div class="star-opt">
+                  <input type="radio" name="star_rating" id="star_{{ val }}" value="{{ val }}" {% if form.star_rating.value|stringformat:"s" == val|stringformat:"s" %}checked{% endif %}>
+                  <label for="star_{{ val }}">
+                    <i class="fas fa-star" style="color:var(--amber);font-size:0.8rem;"></i> {{ val }}
+                  </label>
+                </div>
+                {% endif %}{% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-3">
+            <div class="field">
+              <label>Total Rooms</label>
+              <input type="number" name="total_rooms" class="control" min="1" value="{{ form.total_rooms.value|default:1 }}">
+            </div>
+            <div class="field">
+              <label>Year Built</label>
+              <input type="number" name="year_built" class="control" min="1800" max="2025" placeholder="e.g. 2018" value="{{ form.year_built.value|default:'' }}">
+            </div>
+            <div class="field">
+              <label>Year Renovated</label>
+              <input type="number" name="year_renovated" class="control" min="1800" max="2025" placeholder="e.g. 2023" value="{{ form.year_renovated.value|default:'' }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ STEP 2: LOCATION ════════════════════════════ -->
+      <div class="form-section" data-section="2">
+        <div class="section-header">
+          <div class="section-eyebrow"><i class="fas fa-map-marker-alt"></i> &nbsp;Step 2</div>
+          <div class="section-title">Where is your property?</div>
+          <div class="section-desc">Exact location is shared with guests only after booking confirmation.</div>
+        </div>
+
+        <div class="card">
+          <div class="field col-span-2">
+            <label>Full Street Address <span class="req">*</span></label>
+            <input type="text" name="address" id="id_address" class="control {% if form.address.errors %}is-invalid{% endif %}"
+                   placeholder="Street address, plot number, or landmark"
+                   value="{{ form.address.value|default:'' }}" required>
+            {% for e in form.address.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label>City <span class="req">*</span></label>
+              <input type="text" name="city" id="id_city" class="control {% if form.city.errors %}is-invalid{% endif %}"
+                     value="{{ form.city.value|default:'' }}" placeholder="City name" required>
+              {% for e in form.city.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+            </div>
+            <div class="field">
+              <label>State / Province</label>
+              <input type="text" name="state" class="control" value="{{ form.state.value|default:'' }}" placeholder="Optional">
+            </div>
+            <div class="field">
+              <label>Country <span class="req">*</span></label>
+              <select name="country" id="id_country" class="control" required>
+                <option value="">Select country…</option>
+                {% with sel=form.country.value %}
+                <option value="ZW" {% if sel == 'ZW' %}selected{% endif %}>🇿🇼 Zimbabwe</option>
+                <option value="ZA" {% if sel == 'ZA' %}selected{% endif %}>🇿🇦 South Africa</option>
+                <option value="BW" {% if sel == 'BW' %}selected{% endif %}>🇧🇼 Botswana</option>
+                <option value="ZM" {% if sel == 'ZM' %}selected{% endif %}>🇿🇲 Zambia</option>
+                <option value="MZ" {% if sel == 'MZ' %}selected{% endif %}>🇲🇿 Mozambique</option>
+                <option value="NA" {% if sel == 'NA' %}selected{% endif %}>🇳🇦 Namibia</option>
+                <option value="KE" {% if sel == 'KE' %}selected{% endif %}>🇰🇪 Kenya</option>
+                <option value="TZ" {% if sel == 'TZ' %}selected{% endif %}>🇹🇿 Tanzania</option>
+                <option value="UG" {% if sel == 'UG' %}selected{% endif %}>🇺🇬 Uganda</option>
+                <option value="RW" {% if sel == 'RW' %}selected{% endif %}>🇷🇼 Rwanda</option>
+                <option value="ET" {% if sel == 'ET' %}selected{% endif %}>🇪🇹 Ethiopia</option>
+                <option value="GH" {% if sel == 'GH' %}selected{% endif %}>🇬🇭 Ghana</option>
+                <option value="NG" {% if sel == 'NG' %}selected{% endif %}>🇳🇬 Nigeria</option>
+                {% endwith %}
+              </select>
+              {% for e in form.country.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+            </div>
+            <div class="field">
+              <label>Postal Code</label>
+              <input type="text" name="postal_code" class="control" value="{{ form.postal_code.value|default:'' }}" placeholder="Optional">
+            </div>
+          </div>
+        </div>
+
+        <!-- GPS Coordinates with interactive map -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-crosshairs"></i> GPS Coordinates <span style="font-size:0.75rem;font-weight:400;color:var(--gray-500);margin-left:0.5rem;">(optional — click map to set)</span></div>
+          <div class="grid-2" style="margin-bottom:0.875rem;">
+            <div class="field" style="margin-bottom:0;">
+              <label>Latitude</label>
+              <input type="number" name="latitude" id="id_latitude" class="control" step="0.000001" min="-90" max="90"
+                     placeholder="e.g. -17.8292" value="{{ form.latitude.value|default:'' }}">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>Longitude</label>
+              <input type="number" name="longitude" id="id_longitude" class="control" step="0.000001" min="-180" max="180"
+                     placeholder="e.g. 31.0522" value="{{ form.longitude.value|default:'' }}">
+            </div>
+          </div>
+          <div id="coord-map"></div>
+          <div class="field-hint" style="margin-top:0.5rem;"><i class="fas fa-hand-pointer"></i> Click anywhere on the map to pin your property's exact location</div>
+        </div>
+      </div>
+
+      <!-- ════ STEP 3: PHOTOS ══════════════════════════════ -->
+      <div class="form-section" data-section="3">
+        <div class="section-header">
+          <div class="section-eyebrow"><i class="fas fa-camera"></i> &nbsp;Step 3</div>
+          <div class="section-title">Showcase your property</div>
+          <div class="section-desc">Properties with 10+ high-quality photos get 2× more bookings.</div>
+        </div>
+
+        <div class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle"></i>
+          <div><strong>Photo guidelines:</strong> Original photos only. No stock images or heavily edited photos. Minimum 1 photo required, up to 20 accepted.</div>
+        </div>
+
+        <div class="card">
+          <div class="drop-zone" id="dropZone">
+            <input type="file" name="images" id="imageInput" multiple accept="image/jpeg,image/png,image/webp" style="display:none;">
+            <div class="drop-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+            <div class="drop-title">Drag & drop photos here</div>
+            <div class="drop-sub">or click to browse your files</div>
+            <div class="drop-meta">
+              <span><i class="fas fa-image"></i> JPG, PNG, WebP</span>
+              <span><i class="fas fa-weight-hanging"></i> Max 5MB each</span>
+              <span><i class="fas fa-layer-group"></i> Up to 20 photos</span>
+            </div>
+          </div>
+          <div class="preview-grid" id="previewGrid"></div>
+          <div class="field-hint" style="margin-top:0.75rem;" id="photo-hint">
+            <i class="fas fa-star" style="color:var(--accent);"></i>
+            The first photo will be your cover image. Click <i class="fas fa-star"></i> on any photo to make it the cover.
+          </div>
+        </div>
+
+        {% if image_errors %}
+        <div class="alert alert-danger">
+          <i class="fas fa-times-circle"></i>
+          <div><strong>Some images were not uploaded:</strong>
+            <ul style="margin:0.25rem 0 0 1rem;">{% for err in image_errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- ════ STEP 4: PRICING & PAYMENTS ═════════════════ -->
+      <div class="form-section" data-section="4">
+        <div class="section-header">
+          <div class="section-eyebrow"><i class="fas fa-dollar-sign"></i> &nbsp;Step 4</div>
+          <div class="section-title">Pricing & Payment Methods</div>
+          <div class="section-desc">Set your nightly rates and choose which payment methods guests can use.</div>
+        </div>
+
+        <!-- Nightly rates -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-tag"></i> Nightly Rates (USD)</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Minimum Price <span class="req">*</span></label>
+              <div class="price-group">
+                <span class="price-prefix">USD</span>
+                <input type="number" name="minimum_price" id="id_minimum_price" class="control"
+                       min="0" step="0.01" placeholder="0.00"
+                       value="{{ form.minimum_price.value|default:'' }}">
+              </div>
+              {% for e in form.minimum_price.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+            </div>
+            <div class="field">
+              <label>Maximum Price</label>
+              <div class="price-group">
+                <span class="price-prefix">USD</span>
+                <input type="number" name="maximum_price" id="id_maximum_price" class="control"
+                       min="0" step="0.01" placeholder="0.00"
+                       value="{{ form.maximum_price.value|default:'' }}">
+              </div>
+              {% for e in form.maximum_price.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+            </div>
+          </div>
+          <div class="alert alert-info" style="margin-bottom:0;">
+            <i class="fas fa-info-circle"></i>
+            <div>Zimbabwe-based hosts keep <strong>90%</strong> of each booking. Non-Zimbabwe hosts keep <strong>85%</strong>. No hidden fees.</div>
+          </div>
+        </div>
+
+        <!-- Guest payment methods -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-credit-card"></i> Accepted Guest Payment Methods <span class="req">*</span></div>
+          <p style="font-size:0.875rem;color:var(--gray-500);margin-bottom:1.25rem;">Select all methods you want guests to be able to use when booking your property.</p>
+          <div class="payment-grid">
+            {% for value, name, icon, desc in payment_method_choices %}
+            <div class="pay-card">
+              <input type="checkbox" name="accepted_payment_methods" id="pm_{{ value }}" value="{{ value }}"
+                     {% if value in selected_payment_methods %}checked{% endif %}>
+              <label for="pm_{{ value }}">
+                <div class="pay-icon"><i class="fas {{ icon }}"></i></div>
+                <div class="pay-info">
+                  <div class="pay-name">{{ name }}</div>
+                  <div class="pay-desc">{{ desc }}</div>
+                </div>
+                <div class="pay-check"></div>
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="field-hint" style="margin-top:0.875rem;">
+            <i class="fas fa-shield-alt" style="color:var(--green);"></i>
+            All payments are processed through Marvel Safari's secure checkout — never off-platform.
+          </div>
+        </div>
+
+        <!-- Optional listing fee -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-receipt"></i> Platform Listing Fee <span style="font-size:0.75rem;font-weight:400;color:var(--gray-500);margin-left:0.5rem;">(optional)</span></div>
+          <label class="verify-item" style="cursor:pointer;margin-bottom:0;">
+            <input type="checkbox" name="requires_listing_payment" id="id_requires_listing_payment"
+                   {% if form.requires_listing_payment.value %}checked{% endif %}
+                   onchange="toggleFeePanel(this.checked)">
+            <label for="id_requires_listing_payment" style="font-size:0.9rem;color:var(--gray-700);">
+              <strong>I want to pay an optional listing fee</strong> for priority review placement
+            </label>
+          </label>
+
+          <div class="fee-panel {% if form.requires_listing_payment.value %}show{% endif %}" id="fee-panel">
+            <div class="grid-3" style="margin-top:0.875rem;">
+              <div class="field">
+                <label>Fee Amount</label>
+                <div class="price-group">
+                  <span class="price-prefix">$</span>
+                  <input type="number" name="listing_fee_amount" class="control" min="0" step="0.01"
+                         value="{{ form.listing_fee_amount.value|default:'' }}" placeholder="0.00">
+                </div>
+                {% for e in form.listing_fee_amount.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+              </div>
+              <div class="field">
+                <label>Currency</label>
+                <select name="listing_fee_currency" class="control">
+                  {% with sel=form.listing_fee_currency.value %}
+                  <option value="USD" {% if sel == 'USD' %}selected{% endif %}>USD</option>
+                  <option value="ZWL" {% if sel == 'ZWL' %}selected{% endif %}>ZWL</option>
+                  {% endwith %}
+                </select>
+              </div>
+              <div class="field">
+                <label>Payment Method</label>
+                <select name="listing_payment_method" class="control">
+                  <option value="">Select…</option>
+                  {% with sel=form.listing_payment_method.value %}
+                  <option value="card"          {% if sel == 'card' %}selected{% endif %}>Card</option>
+                  <option value="paynow"        {% if sel == 'paynow' %}selected{% endif %}>Paynow</option>
+                  <option value="ecocash"       {% if sel == 'ecocash' %}selected{% endif %}>EcoCash</option>
+                  <option value="bank_transfer" {% if sel == 'bank_transfer' %}selected{% endif %}>Bank Transfer</option>
+                  {% endwith %}
+                </select>
+                {% for e in form.listing_payment_method.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════ STEP 5: AMENITIES & ROOMS ══════════════════ -->
+      <div class="form-section" data-section="5">
+        <div class="section-header">
+          <div class="section-eyebrow"><i class="fas fa-concierge-bell"></i> &nbsp;Step 5</div>
+          <div class="section-title">Facilities & Room Types</div>
+          <div class="section-desc">Tag available amenities and optionally define your room types.</div>
+        </div>
+
+        <!-- Amenities -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-check-circle"></i> Amenities</div>
+          <div class="pill-grid" id="amenitiesContainer">
+            {% with sel=form.amenities.value %}
+              {% for amenity in form.fields.amenities.queryset %}
+              <div class="pill">
+                <input type="checkbox" name="amenities" id="am_{{ amenity.pk }}" value="{{ amenity.pk }}"
+                       {% if sel and amenity.pk|stringformat:"s" in sel|join:"," %}checked{% endif %}>
+                <label for="am_{{ amenity.pk }}">{{ amenity.name }}</label>
+              </div>
+              {% empty %}
+              <span class="field-hint"><i class="fas fa-info-circle"></i> No amenities configured yet.</span>
+              {% endfor %}
+            {% endwith %}
+          </div>
+        </div>
+
+        <!-- Room types -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-bed"></i> Room Types <span style="font-size:0.75rem;font-weight:400;color:var(--gray-500);margin-left:0.5rem;">(optional)</span></div>
+          <p style="font-size:0.875rem;color:var(--gray-500);margin-bottom:1rem;">Define individual room types with pricing, bed configuration, and capacity.</p>
+          <div id="roomsContainer"></div>
+          <button type="button" class="add-room-btn" onclick="addRoom()">
+            <i class="fas fa-plus"></i> Add Room Type
+          </button>
+        </div>
+      </div>
+
+      <!-- ════ STEP 6: POLICIES & REVIEW ══════════════════ -->
+      <div class="form-section" data-section="6">
+        <div class="section-header">
+          <div class="section-eyebrow"><i class="fas fa-clipboard-check"></i> &nbsp;Step 6</div>
+          <div class="section-title">Policies & Final Review</div>
+          <div class="section-desc">Set your house rules and confirm your submission.</div>
+        </div>
+
+        <!-- Policies -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-clock"></i> Check-in / Check-out</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Check-in Time</label>
+              <input type="time" name="check_in_time" class="control" value="{{ form.check_in_time.value|default:'14:00' }}">
+            </div>
+            <div class="field">
+              <label>Check-out Time</label>
+              <input type="time" name="check_out_time" class="control" value="{{ form.check_out_time.value|default:'10:00' }}">
+            </div>
+            <div class="field">
+              <label>Earliest Check-in</label>
+              <input type="time" name="earliest_check_in" class="control" value="{{ form.earliest_check_in.value|default:'12:00' }}">
+            </div>
+            <div class="field">
+              <label>Latest Check-out</label>
+              <input type="time" name="latest_check_out" class="control" value="{{ form.latest_check_out.value|default:'15:00' }}">
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><i class="fas fa-file-alt"></i> Policies</div>
+          <div class="field">
+            <label>Cancellation Policy</label>
+            <textarea name="cancellation_policy" class="control" placeholder="e.g. Free cancellation up to 48 hours before check-in. No refund after that.">{{ form.cancellation_policy.value|default:'' }}</textarea>
+            <div class="field-hint"><i class="fas fa-info-circle"></i> Tip: Including "free cancel" or "full refund" enables the free cancellation badge on your listing</div>
+          </div>
+          <div class="field">
+            <label>House Rules</label>
+            <textarea name="house_rules" class="control" placeholder="e.g. No smoking indoors. Quiet hours after 10 PM. Pets allowed with prior notice.">{{ form.house_rules.value|default:'' }}</textarea>
+          </div>
+          <div class="field">
+            <label>Special Instructions for Guests</label>
+            <textarea name="special_instructions" class="control" placeholder="Anything guests should know before or during their stay…">{{ form.special_instructions.value|default:'' }}</textarea>
+          </div>
+        </div>
+
+        <!-- Contact -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-phone"></i> Contact Information</div>
+          <div class="grid-2">
+            <div class="field col-span-2">
+              <label>Manager / Host Name</label>
+              <input type="text" name="manager_name" class="control" value="{{ form.manager_name.value|default:'' }}" placeholder="Your name or property manager name">
+            </div>
+            <div class="field">
+              <label>Phone Number <span class="req">*</span></label>
+              <input type="tel" name="phone" id="id_phone" class="control {% if form.phone.errors %}is-invalid{% endif %}"
+                     value="{{ form.phone.value|default:'' }}" placeholder="+263 71 234 5678" required>
+              {% for e in form.phone.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+            </div>
+            <div class="field">
+              <label>Email Address <span class="req">*</span></label>
+              <input type="email" name="email" id="id_email" class="control {% if form.email.errors %}is-invalid{% endif %}"
+                     value="{{ form.email.value|default:'' }}" placeholder="host@yourproperty.com" required>
+              {% for e in form.email.errors %}<div class="field-error"><i class="fas fa-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Verification -->
+        <div class="card">
+          <div class="card-title"><i class="fas fa-user-check"></i> Confirm Your Listing</div>
+          <div class="verify-item">
+            <input type="checkbox" id="v1" required>
+            <label for="v1"><strong>I am the owner or authorised representative</strong> of this property and have the right to list it.</label>
+          </div>
+          <div class="verify-item">
+            <input type="checkbox" id="v2" required>
+            <label for="v2"><strong>All photos are original and current.</strong> No stock images, AI-generated images, or heavily edited photos.</label>
+          </div>
+          <div class="verify-item">
+            <input type="checkbox" id="v3" required>
+            <label for="v3"><strong>All information is accurate and truthful.</strong> I understand that false listings lead to permanent bans.</label>
+          </div>
+          <div class="verify-item">
+            <input type="checkbox" id="v4" required>
+            <label for="v4">I have read and agree to Marvel Safari's <a href="{% url 'core:terms' %}" target="_blank" style="color:var(--blue);">Terms of Service</a> and <a href="{% url 'core:privacy' %}" target="_blank" style="color:var(--blue);">Privacy Policy</a>.</label>
+          </div>
+        </div>
+
+        <div class="alert alert-danger">
+          <i class="fas fa-gavel"></i>
+          <div><strong>Anti-fraud policy:</strong> Fraudulent listings are reported to authorities. Hosts found soliciting off-platform payments will be permanently banned.</div>
+        </div>
+      </div>
+
+      <!-- ════ NAVIGATION BUTTONS ════════════════════════════ -->
+      <div class="wizard-nav">
+        <button type="button" class="btn btn-ghost" id="prevBtn" onclick="prevSection()" style="display:none;">
+          <i class="fas fa-arrow-left"></i> Back
+        </button>
+
+        <div class="nav-right">
+          <button type="submit" name="save_as_draft" value="true" class="btn btn-ghost" id="draftBtn">
+            <i class="fas fa-save"></i> Save draft
+          </button>
+          <button type="button" class="btn btn-primary" id="nextBtn" onclick="nextSection()">
+            Continue <i class="fas fa-arrow-right"></i>
+          </button>
+          <button type="submit" class="btn btn-accent" id="submitBtn" style="display:none;">
+            <i class="fas fa-paper-plane"></i> Submit for Review
+          </button>
+        </div>
+      </div>
+
+    </form>
+  </main>
+</div>
+
+<!-- Leaflet for coordinate picker -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+// ── Step config ──────────────────────────────────────────
+const STEPS = [
+  { num:1, name:'Basic Information',     eyebrow:'Basics' },
+  { num:2, name:'Location',              eyebrow:'Location' },
+  { num:3, name:'Photos',                eyebrow:'Photos' },
+  { num:4, name:'Pricing & Payments',    eyebrow:'Pricing' },
+  { num:5, name:'Amenities & Rooms',     eyebrow:'Amenities' },
+  { num:6, name:'Policies & Review',     eyebrow:'Policies' },
+];
+const TOTAL = STEPS.length;
+let currentStep = 1;
+
+// ── Navigation ───────────────────────────────────────────
+function goToStep(n) {
+  currentStep = Math.max(1, Math.min(n, TOTAL));
+
+  document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+  document.querySelector(`[data-section="${currentStep}"]`).classList.add('active');
+
+  document.querySelectorAll('.sidebar-step').forEach((el, i) => {
+    el.classList.remove('active', 'completed');
+    if (i + 1 === currentStep)   el.classList.add('active');
+    if (i + 1  <  currentStep)   el.classList.add('completed');
+  });
+
+  const pct = ((currentStep - 1) / (TOTAL - 1)) * 100;
+  document.getElementById('mobile-fill').style.width = pct + '%';
+  document.getElementById('mobile-step-label').textContent = `Step ${currentStep} of ${TOTAL}`;
+  document.getElementById('mobile-step-name').textContent  = STEPS[currentStep - 1].name;
+
+  document.getElementById('prevBtn').style.display   = currentStep === 1     ? 'none' : 'inline-flex';
+  document.getElementById('nextBtn').style.display   = currentStep === TOTAL ? 'none' : 'inline-flex';
+  document.getElementById('submitBtn').style.display = currentStep === TOTAL ? 'inline-flex' : 'none';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (currentStep === 2 && !mapInit) initMap();
+}
+
+window.nextSection = function() {
+  if (validateStep(currentStep)) goToStep(currentStep + 1);
+};
+window.prevSection = function() { goToStep(currentStep - 1); };
+
+// Sidebar step click
+document.querySelectorAll('.sidebar-step').forEach(el => {
+  el.addEventListener('click', () => {
+    const n = parseInt(el.dataset.sidebarStep);
+    if (n <= currentStep) goToStep(n);
+  });
+});
+
+// ── Validation ────────────────────────────────────────────
+function validateStep(step) {
+  const toast = (msg, el) => {
+    if (el) { el.classList.add('is-invalid'); el.focus(); }
+    showToast(msg, 'error');
+  };
+  switch (step) {
+    case 1: {
+      const name = document.getElementById('id_name');
+      const desc = document.getElementById('id_description');
+      const type = document.getElementById('id_property_type');
+      if (!name.value.trim())            { toast('Property name is required', name); return false; }
+      if (desc.value.trim().length < 50) { toast('Description must be at least 50 characters', desc); return false; }
+      if (!type.value)                   { toast('Please select a property type', type); return false; }
+      return true;
+    }
+    case 2: {
+      const addr = document.getElementById('id_address');
+      const city = document.getElementById('id_city');
+      const ctry = document.getElementById('id_country');
+      if (!addr.value.trim()) { toast('Address is required', addr);    return false; }
+      if (!city.value.trim()) { toast('City is required', city);       return false; }
+      if (!ctry.value)        { toast('Country is required', ctry);    return false; }
+      return true;
+    }
+    case 3:
+      if (uploadedFiles.length < 1) { showToast('Please upload at least 1 photo', 'error'); return false; }
+      return true;
+    case 4: {
+      const methods = document.querySelectorAll('input[name="accepted_payment_methods"]:checked');
+      if (methods.length === 0) { showToast('Please select at least one guest payment method', 'error'); return false; }
+      const min = document.getElementById('id_minimum_price');
+      if (!min.value || parseFloat(min.value) <= 0) { toast('Please set a minimum price', min); return false; }
+      return true;
+    }
+    case 6: {
+      const checks = document.querySelectorAll('.verify-item input[type="checkbox"]');
+      for (const cb of checks) {
+        if (!cb.checked) { showToast('Please confirm all verification checkboxes', 'error'); return false; }
+      }
+      const phone = document.getElementById('id_phone');
+      const email = document.getElementById('id_email');
+      if (!phone.value.trim()) { toast('Phone number is required', phone); return false; }
+      if (!email.value.trim()) { toast('Email is required', email); return false; }
+      return true;
+    }
+    default: return true;
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────
+function showToast(msg, type='info') {
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;
+    padding:0.875rem 1.25rem;border-radius:0.75rem;font-size:0.875rem;font-weight:600;
+    color:white;max-width:320px;box-shadow:0 8px 24px rgba(0,0,0,0.2);
+    animation:slideUp 0.3s ease;
+    background:${type==='error'?'#dc2626':type==='success'?'#10b981':'#0071c2'};`;
+  t.innerHTML = `<i class="fas fa-${type==='error'?'exclamation-circle':type==='success'?'check-circle':'info-circle'}" style="margin-right:0.5rem;"></i>${msg}`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+const style = document.createElement('style');
+style.textContent = `@keyframes slideUp{from{transform:translateY(1rem);opacity:0}to{transform:translateY(0);opacity:1}}`;
+document.head.appendChild(style);
+
+// ── Char counters ─────────────────────────────────────────
+function initCharCount(inputId, countId, min, max) {
+  const el = document.getElementById(inputId);
+  const ct = document.getElementById(countId);
+  if (!el || !ct) return;
+  const update = () => {
+    const len = el.value.length;
+    ct.textContent = `${len}${max ? '/'+max : ''}`;
+    ct.className = 'char-count ' + (len >= (min||0) ? 'ok' : 'warn');
+  };
+  el.addEventListener('input', update);
+  update();
+}
+initCharCount('id_name', 'name-count', 3, 255);
+initCharCount('id_description', 'desc-count', 50, null);
+
+// ── Clear invalid on input ────────────────────────────────
+document.querySelectorAll('.control').forEach(el => {
+  el.addEventListener('input', () => el.classList.remove('is-invalid'));
+});
+
+// ── Price cross-validation ────────────────────────────────
+const minP = document.getElementById('id_minimum_price');
+const maxP = document.getElementById('id_maximum_price');
+if (minP && maxP) {
+  const validate = () => {
+    if (minP.value && maxP.value && parseFloat(minP.value) > parseFloat(maxP.value)) {
+      maxP.classList.add('is-invalid');
+      showToast('Maximum price must be greater than minimum price', 'error');
+    } else {
+      maxP.classList.remove('is-invalid');
+    }
+  };
+  minP.addEventListener('change', validate);
+  maxP.addEventListener('change', validate);
+}
+
+// ── Listing fee toggle ────────────────────────────────────
+window.toggleFeePanel = function(show) {
+  document.getElementById('fee-panel').classList.toggle('show', show);
+};
+
+// ── Image upload ──────────────────────────────────────────
+const dropZone   = document.getElementById('dropZone');
+const imageInput = document.getElementById('imageInput');
+const previewGrid = document.getElementById('previewGrid');
+let uploadedFiles = [];
+
+dropZone.addEventListener('click', e => { if (e.target === dropZone || dropZone.contains(e.target)) imageInput.click(); });
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('over'); handleFiles(e.dataTransfer.files); });
+imageInput.addEventListener('change', () => handleFiles(imageInput.files));
+
+function handleFiles(files) {
+  const valid = Array.from(files).filter(f => f.type.startsWith('image/') && f.size <= 5*1024*1024);
+  const rejected = files.length - valid.length;
+  if (rejected > 0) showToast(`${rejected} file(s) skipped — must be image under 5MB`, 'error');
+  if (uploadedFiles.length + valid.length > 20) { showToast('Maximum 20 photos allowed', 'error'); return; }
+  valid.forEach(f => { uploadedFiles.push(f); addPreview(f, uploadedFiles.length - 1); });
+  updateFileInput();
+}
+
+function addPreview(file, index) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    div.dataset.index = index;
+    div.innerHTML = `
+      <img src="${e.target.result}" alt="Preview">
+      <div class="preview-overlay">
+        <button type="button" class="prev-btn" title="Make cover" onclick="makeCover(this)"><i class="fas fa-star"></i></button>
+        <button type="button" class="prev-btn del" title="Remove" onclick="removeImg(this)"><i class="fas fa-trash"></i></button>
+      </div>
+      ${index === 0 ? '<div class="cover-badge">Cover</div>' : ''}
+    `;
+    previewGrid.appendChild(div);
+  };
+  reader.readAsDataURL(file);
+}
+
+window.removeImg = function(btn) {
+  const item = btn.closest('.preview-item');
+  const idx  = parseInt(item.dataset.index);
+  uploadedFiles.splice(idx, 1);
+  rebuildPreviews();
+};
+
+window.makeCover = function(btn) {
+  const item = btn.closest('.preview-item');
+  const idx  = parseInt(item.dataset.index);
+  const [file] = uploadedFiles.splice(idx, 1);
+  uploadedFiles.unshift(file);
+  rebuildPreviews();
+};
+
+function rebuildPreviews() {
+  previewGrid.innerHTML = '';
+  uploadedFiles.forEach((f, i) => addPreview(f, i));
+  updateFileInput();
+}
+
+function updateFileInput() {
+  const dt = new DataTransfer();
+  uploadedFiles.forEach(f => dt.items.add(f));
+  imageInput.files = dt.files;
+}
+
+// ── Amenity pill toggle ───────────────────────────────────
+document.querySelectorAll('.pill input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', function() {
+    this.closest('.pill').querySelector('label').style.transition = 'all 0.15s';
+  });
+});
+
+// ── Room type builder ────────────────────────────────────
+let roomCount = 0;
+const roomsContainer = document.getElementById('roomsContainer');
+
+window.addRoom = function() {
+  roomCount++;
+  const id = roomCount;
+  const div = document.createElement('div');
+  div.className = 'room-card';
+  div.innerHTML = `
+    <div class="room-card-header">
+      <div class="room-card-title"><i class="fas fa-bed" style="color:var(--blue);margin-right:0.5rem;"></i>Room Type ${id}</div>
+      <button type="button" class="remove-room" onclick="this.closest('.room-card').remove()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="grid-2">
+      <div class="field col-span-2">
+        <label>Room Name</label>
+        <input type="text" name="room_types[${id}][name]" class="control" placeholder="e.g. Deluxe Safari Suite">
+      </div>
+      <div class="field">
+        <label>Price / Night (USD)</label>
+        <div class="price-group">
+          <span class="price-prefix">$</span>
+          <input type="number" name="room_types[${id}][price]" class="control" min="0" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+      <div class="field">
+        <label>Quantity Available</label>
+        <input type="number" name="room_types[${id}][quantity]" class="control" min="1" value="1">
+      </div>
+      <div class="field">
+        <label>Max Adults</label>
+        <input type="number" name="room_types[${id}][max_adults]" class="control" min="1" value="2">
+      </div>
+      <div class="field">
+        <label>Max Children</label>
+        <input type="number" name="room_types[${id}][max_children]" class="control" min="0" value="2">
+      </div>
+      <div class="field">
+        <label>Bed Type</label>
+        <select name="room_types[${id}][bed_type]" class="control">
+          <option value="double">Double</option>
+          <option value="twin">Twin</option>
+          <option value="queen">Queen</option>
+          <option value="king">King</option>
+          <option value="single">Single</option>
+          <option value="bunk">Bunk Beds</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Room Size (m²)</label>
+        <input type="number" name="room_types[${id}][size]" class="control" min="0" step="0.1" placeholder="e.g. 28">
+      </div>
+    </div>
+    <div class="field">
+      <label>Room Description</label>
+      <textarea name="room_types[${id}][description]" class="control" style="min-height:70px;" placeholder="Brief description of this room type…"></textarea>
+    </div>
+  `;
+  roomsContainer.appendChild(div);
+};
+
+// ── Coordinate map picker ────────────────────────────────
+let mapInit = false, leafletMap, leafletMarker;
+
+function initMap() {
+  mapInit = true;
+  const latEl = document.getElementById('id_latitude');
+  const lngEl = document.getElementById('id_longitude');
+  const startLat = parseFloat(latEl.value) || -17.8292;
+  const startLng = parseFloat(lngEl.value) || 31.0522;
+  const zoom = (latEl.value && lngEl.value) ? 13 : 5;
+
+  leafletMap = L.map('coord-map', { scrollWheelZoom: false }).setView([startLat, startLng], zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(leafletMap);
+
+  if (latEl.value && lngEl.value) {
+    leafletMarker = L.marker([startLat, startLng]).addTo(leafletMap);
+  }
+
+  leafletMap.on('click', e => {
+    const { lat, lng } = e.latlng;
+    latEl.value = lat.toFixed(6);
+    lngEl.value = lng.toFixed(6);
+    if (leafletMarker) leafletMap.removeLayer(leafletMarker);
+    leafletMarker = L.marker([lat, lng]).addTo(leafletMap).bindPopup('Your property location').openPopup();
+  });
+
+  // Sync typed coordinates → map
+  [latEl, lngEl].forEach(el => el.addEventListener('change', () => {
+    const la = parseFloat(latEl.value), lo = parseFloat(lngEl.value);
+    if (!isNaN(la) && !isNaN(lo)) {
+      if (leafletMarker) leafletMap.removeLayer(leafletMarker);
+      leafletMarker = L.marker([la, lo]).addTo(leafletMap);
+      leafletMap.setView([la, lo], 13);
+    }
+  }));
+}
+
+// ── Handle Django form errors: jump to first error step ──
+{% if form.errors %}
+(function() {
+  const errorFields = {{ form.errors|safe }};
+  const stepFields = {
+    1: ['name','description','property_type','star_rating','total_rooms','year_built','year_renovated'],
+    2: ['address','city','state','country','postal_code','latitude','longitude'],
+    3: [],
+    4: ['minimum_price','maximum_price','accepted_payment_methods','listing_fee_amount','listing_payment_method'],
+    5: ['amenities'],
+    6: ['phone','email','cancellation_policy','house_rules'],
+  };
+  for (let step = 1; step <= {{ steps|length }}; step++) {
+    if (stepFields[step].some(f => errorFields[f])) { goToStep(step); break; }
+  }
+})();
+{% endif %}
+
+// ── Init ─────────────────────────────────────────────────
+goToStep(1);
+</script>
+{% endblock %}

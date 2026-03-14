@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Resend Verification - Marvel Safari{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-xl mx-auto">
+    <div class="card card-body lg:p-8">
+      <div class="text-center mb-6">
+        <div class="mx-auto h-14 w-14 bg-[#003580] rounded-full flex items-center justify-center mb-4">
+          <i class="fa-regular fa-envelope-circle-check text-[#feba02] text-xl"></i>
+        </div>
+        <h1 class="font-display text-3xl font-bold text-gray-900">Resend Verification Email</h1>
+        <p class="text-gray-600 mt-2">Enter your email and we will send a new 6-digit verification code.</p>
+      </div>
+
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-error">
+            <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+            <div>{{ form.non_field_errors|join:', ' }}</div>
+          </div>
+        {% endif %}
+        <div>
+          <label class="form-label" for="{{ form.email.id_for_label }}">Email address</label>
+          <input id="{{ form.email.id_for_label }}" type="email" name="{{ form.email.html_name }}" value="{{ form.email.value|default:'' }}" class="form-input" required>
+          {% if form.email.errors %}
+            <p class="form-error">{{ form.email.errors.0 }}</p>
+          {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary w-full">Send Verification Email</button>
+      </form>
+
+      <div class="mt-6 text-center text-sm text-gray-600">
+        <a href="{% url 'accounts:login' %}" class="text-[#003580] hover:underline">Back to login</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

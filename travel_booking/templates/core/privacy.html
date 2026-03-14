@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - Marvel Safari{% endblock %}
+{% block meta_description %}Read Marvel Safari's privacy policy to understand how we collect, use, and protect your personal information.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-6xl mx-auto space-y-8">
+    <header class="card card-body lg:p-10">
+      <p class="badge badge-info mb-4">Legal</p>
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-900">Privacy Policy</h1>
+      <p class="text-gray-600 mt-4 max-w-3xl">How Marvel Safari collects, uses, and protects personal information across booking, support, and account services.</p>
+      <p class="text-sm text-gray-500 mt-4">Last updated: {% now "F j, Y" %}</p>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
+      <article class="card card-body lg:p-10 space-y-7">
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">1. Information We Collect</h2>
+          <p class="text-gray-700">We collect details you provide directly, including account profile details, booking details, traveler preferences, and support requests.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">2. How We Use Your Information</h2>
+          <p class="text-gray-700">Information is used to deliver bookings, confirm services, process payments, communicate updates, and improve platform reliability.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">3. Sharing and Disclosure</h2>
+          <p class="text-gray-700">We share only what is required with relevant service providers, partners, and payment processors to complete your booking and provide support.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">4. Security and Retention</h2>
+          <p class="text-gray-700">We apply access controls, encryption, and monitoring to protect data. Records are retained only for operational, legal, or security needs.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">5. Your Rights</h2>
+          <p class="text-gray-700">You may request access, correction, or deletion of your personal data where applicable. Contact our privacy team for formal requests.</p>
+        </section>
+      </article>
+
+      <aside class="space-y-6">
+        <div class="card card-body">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3">Related Documents</h3>
+          <ul class="space-y-2 text-sm">
+            <li><a class="text-[#003580] hover:underline" href="{% url 'core:terms' %}">Terms of Service</a></li>
+            <li><a class="text-[#003580] hover:underline" href="{% url 'core:cookies' %}">Cookie Policy</a></li>
+            <li><a class="text-[#003580] hover:underline" href="{% url 'core:accessibility' %}">Accessibility Statement</a></li>
+          </ul>
+        </div>
+        <div class="card card-body bg-[#003580] text-white border-0">
+          <h3 class="text-lg font-semibold mb-2">Questions?</h3>
+          <p class="text-white/80 text-sm">Contact the privacy team for data requests or policy clarification.</p>
+          <a href="{% url 'core:contact' %}" class="btn btn-accent mt-4">Contact Support</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

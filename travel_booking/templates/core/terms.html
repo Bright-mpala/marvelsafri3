@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Terms of Service - Marvel Safari{% endblock %}
+{% block meta_description %}Read Marvel Safari's terms of service to understand the rules and guidelines for using our platform.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-6xl mx-auto space-y-8">
+    <header class="card card-body lg:p-10">
+      <p class="badge badge-warning mb-4">Legal</p>
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-900">Terms of Service</h1>
+      <p class="text-gray-600 mt-4 max-w-3xl">Rules and obligations that govern account use, bookings, and services on Marvel Safari.</p>
+      <p class="text-sm text-gray-500 mt-4">Last updated: {% now "F j, Y" %}</p>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
+      <article class="card card-body lg:p-10 space-y-7">
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">1. Account and Access</h2>
+          <p class="text-gray-700">By using this platform, you agree to maintain accurate account information and keep your credentials secure.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">2. Bookings and Payments</h2>
+          <p class="text-gray-700">All bookings are subject to availability, verification, and payment confirmation. Fees and terms are shown before checkout.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">3. Cancellations and Changes</h2>
+          <p class="text-gray-700">Cancellation and modification terms differ by provider and booking type. Review the policy displayed at checkout.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">4. Acceptable Use</h2>
+          <p class="text-gray-700">You may not misuse the platform, interfere with operations, or use the service for unlawful or fraudulent activity.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">5. Liability and Jurisdiction</h2>
+          <p class="text-gray-700">Liability is limited to the extent permitted by law. These terms are interpreted under applicable laws in Kenya unless stated otherwise.</p>
+        </section>
+      </article>
+
+      <aside class="space-y-6">
+        <div class="card card-body">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3">Need More Detail?</h3>
+          <ul class="space-y-2 text-sm">
+            <li><a class="text-[#003580] hover:underline" href="{% url 'core:privacy' %}">Privacy Policy</a></li>
+            <li><a class="text-[#003580] hover:underline" href="{% url 'core:cookies' %}">Cookie Policy</a></li>
+            <li><a class="text-[#003580] hover:underline" href="{% url 'core:help' %}">Help Center</a></li>
+          </ul>
+        </div>
+        <div class="card card-body bg-[#003580] text-white border-0">
+          <h3 class="text-lg font-semibold mb-2">Legal Contact</h3>
+          <p class="text-white/80 text-sm">For legal questions, policy clarifications, or dispute support.</p>
+          <a href="{% url 'core:contact' %}" class="btn btn-accent mt-4">Contact Legal Team</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

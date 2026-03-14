@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Accessibility Statement - Marvel Safari{% endblock %}
+{% block meta_description %}Marvel Safari is committed to making our website accessible to everyone. Learn about our accessibility features and how to contact us with accessibility concerns.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-6xl mx-auto space-y-8">
+    <header class="card card-body lg:p-10">
+      <p class="badge badge-success mb-4">Inclusion</p>
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-900">Accessibility Statement</h1>
+      <p class="text-gray-600 mt-4 max-w-3xl">Marvel Safari is committed to an accessible platform experience for all users, regardless of device or ability.</p>
+      <p class="text-sm text-gray-500 mt-4">Last updated: {% now "F j, Y" %}</p>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
+      <article class="card card-body lg:p-10 space-y-7">
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Our Commitment</h2>
+          <p class="text-gray-700">We continuously improve accessibility across navigation, content readability, interaction components, and booking workflows.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Current Accessibility Features</h2>
+          <ul class="list-disc pl-5 space-y-2 text-gray-700">
+            <li>Keyboard-friendly navigation and visible focus states.</li>
+            <li>Semantic heading structure and labeled form controls.</li>
+            <li>Screen-reader friendly markup and alt text guidance.</li>
+            <li>Color contrast and responsive text handling across devices.</li>
+          </ul>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Standards Target</h2>
+          <p class="text-gray-700">Our accessibility objective is ongoing alignment with WCAG 2.1 Level AA criteria.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Report an Issue</h2>
+          <p class="text-gray-700">If you encounter a barrier, please share the page URL, issue details, and assistive technology used so we can respond quickly.</p>
+        </section>
+      </article>
+
+      <aside class="space-y-6">
+        <div class="card card-body">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3">Priority Channels</h3>
+          <p class="text-sm text-gray-600">Accessibility requests are prioritized by our support team.</p>
+          <a class="text-[#003580] hover:underline text-sm mt-3 inline-block" href="mailto:accessibility@marvelsafari.com">accessibility@marvelsafari.com</a>
+        </div>
+        <div class="card card-body bg-[#003580] text-white border-0">
+          <h3 class="text-lg font-semibold mb-2">Need Immediate Help?</h3>
+          <p class="text-white/80 text-sm">Submit a support request and include accessibility requirements for your trip.</p>
+          <a href="{% url 'core:contact' %}" class="btn btn-accent mt-4">Open Support Form</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

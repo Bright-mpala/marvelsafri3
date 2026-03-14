@@ -1,0 +1,932 @@
+{% extends 'base.html' %}
+{% load property_filters %}
+
+{% block title %}{{ property.name }} — Marvel Safari{% endblock %}
+{% block meta_description %}Book {{ property.name }} in {{ property.city }}, {{ property.country.name }}. From ${{ property.minimum_price }}/night. Verified listing, instant confirmation.{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Gallery ───────────────────────────────────────────── */
+  .gallery-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 240px 240px; gap: 4px; border-radius: 1rem; overflow: hidden; }
+  .gallery-grid .primary { grid-row: 1 / 3; }
+  @media (max-width: 640px) { .gallery-grid { grid-template-columns: 1fr; grid-template-rows: 260px; } .gallery-grid .secondary { display: none; } }
+  .gallery-img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; transition: transform 0.3s ease, filter 0.3s ease; display: block; }
+  .gallery-img:hover { transform: scale(1.03); filter: brightness(0.92); }
+  .gallery-cell { overflow: hidden; position: relative; background: #0b1f2e; }
+  .gallery-cell.more-overlay::after { content: attr(data-label); position: absolute; inset: 0; background: rgba(0,0,0,0.55); color: #fff; font-weight: 700; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+  /* ── Lightbox ──────────────────────────────────────────── */
+  #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.94); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+  #lightbox.open { opacity: 1; pointer-events: all; }
+  #lightbox img { max-width: 90vw; max-height: 78vh; object-fit: contain; border-radius: 0.5rem; box-shadow: 0 25px 60px rgba(0,0,0,0.6); }
+  #lightbox-nav { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin-top: 1.25rem; }
+  #lightbox-counter { color: rgba(255,255,255,0.7); font-size: 0.875rem; min-width: 4rem; text-align: center; }
+  .lb-btn { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 2.75rem; height: 2.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; font-size: 1.1rem; }
+  .lb-btn:hover { background: rgba(255,255,255,0.25); }
+  #lightbox-close { position: absolute; top: 1.25rem; right: 1.5rem; font-size: 1.5rem; color: #fff; cursor: pointer; background: rgba(255,255,255,0.1); border-radius: 50%; width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  #lightbox-close:hover { background: rgba(255,255,255,0.25); }
+  #lightbox-caption { color: rgba(255,255,255,0.6); font-size: 0.8rem; margin-top: 0.75rem; max-width: 60ch; text-align: center; }
+  /* Thumbnail strip */
+  #lb-thumbs { display: flex; gap: 6px; margin-top: 1rem; max-width: 90vw; overflow-x: auto; padding-bottom: 4px; }
+  #lb-thumbs img { width: 56px; height: 42px; object-fit: cover; border-radius: 4px; cursor: pointer; opacity: 0.55; border: 2px solid transparent; transition: opacity 0.15s, border-color 0.15s; flex-shrink: 0; }
+  #lb-thumbs img.active { opacity: 1; border-color: #f6b17a; }
+
+  /* ── Wishlist btn ──────────────────────────────────────── */
+  #wishlist-btn { transition: all 0.2s ease; }
+  #wishlist-btn.saved { color: #ef4444; border-color: #fecaca; background: #fff1f2; }
+  #wishlist-btn.saved .heart-icon { fill: #ef4444; }
+  .heart-icon { fill: none; stroke: currentColor; transition: fill 0.2s; }
+
+  /* ── Rating score box ─────────────────────────────────── */
+  .score-box { border-radius: 0.5rem 0.5rem 0.5rem 0; }
+
+  /* ── Sticky widget ─────────────────────────────────────── */
+  @media (min-width: 1024px) { .widget-sticky { position: sticky; top: 5.5rem; } }
+
+  /* ── Review score bar ─────────────────────────────────── */
+  .score-bar-fill { height: 6px; border-radius: 3px; background: #003580; transition: width 0.6s ease; }
+  .score-bar-bg { height: 6px; border-radius: 3px; background: #e5e7eb; }
+
+  /* ── Pulse urgency ──────────────────────────────────────── */
+  @keyframes urgency-pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+  .urgency { animation: urgency-pulse 2.2s infinite; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ══════════════════════════════════════════════════
+     HERO GALLERY
+════════════════════════════════════════════════════ -->
+{% with images=property.images.all %}
+<div class="max-w-7xl mx-auto px-4 pt-6 pb-2">
+
+  <!-- Title row above gallery (mobile-first) -->
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+    <div>
+      {% if property.star_rating %}
+      <div class="flex items-center gap-0.5 mb-1">
+        {% for i in "12345" %}{% if forloop.counter <= property.star_rating %}<i class="fas fa-star text-amber-400 text-xs"></i>{% else %}<i class="fas fa-star text-gray-200 text-xs"></i>{% endif %}{% endfor %}
+        <span class="text-xs text-gray-500 ml-1">{{ property.property_type.name }}</span>
+      </div>
+      {% else %}
+      <p class="text-xs text-gray-500 mb-1 uppercase tracking-wide">{{ property.property_type.name }}</p>
+      {% endif %}
+      <h1 class="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">{{ property.name }}</h1>
+      <p class="text-sm text-gray-500 mt-1 flex items-center gap-1">
+        <i class="fas fa-map-marker-alt text-xs text-[#0071c2]"></i>
+        {{ property.address|default:property.city }}, {{ property.city }}, {{ property.country.name }}
+      </p>
+    </div>
+
+    <!-- Action buttons: Share + Wishlist -->
+    <div class="flex items-center gap-2 shrink-0">
+      <button onclick="shareProperty()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition font-medium">
+        <i class="fas fa-share-nodes text-xs"></i> Share
+      </button>
+
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'properties:toggle_favorite' property.slug %}" id="wishlist-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="button" id="wishlist-btn"
+                class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-red-300 hover:bg-red-50 transition font-medium {% if is_favorited %}saved{% endif %}"
+                onclick="toggleWishlist(this)">
+          <svg class="heart-icon w-4 h-4" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+          </svg>
+          <span id="wishlist-label">{% if is_favorited %}Saved{% else %}Save{% endif %}</span>
+        </button>
+      </form>
+      {% else %}
+      <a href="{% url 'accounts:login' %}?next={{ request.get_full_path }}"
+         class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-red-300 hover:bg-red-50 transition font-medium">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+        </svg>
+        Save
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Gallery grid -->
+  <div class="gallery-grid relative" id="gallery-grid">
+    {% if images %}
+      <!-- Primary image -->
+      <div class="gallery-cell primary">
+        {% with img=images.0 %}{% with url=img.get_thumbnail_url %}
+        {% if url %}
+        <img class="gallery-img" src="{{ url }}" alt="{{ img.alt_text|default:property.name }}" data-index="0" onclick="openLightbox(0)">
+        {% else %}
+        <div class="w-full h-full bg-gradient-to-br from-[#0b1f2e] to-[#123754] flex items-center justify-center">
+          <i class="fas fa-hotel text-6xl text-white/20"></i>
+        </div>
+        {% endif %}
+        {% endwith %}{% endwith %}
+      </div>
+
+      <!-- Secondary images (up to 4) -->
+      {% for img in images|slice:"1:5" %}
+      {% with url=img.get_thumbnail_url %}
+      <div class="gallery-cell secondary {% if forloop.counter == 4 and images.count > 5 %}more-overlay{% endif %}"
+           data-label="{% if forloop.counter == 4 and images.count > 5 %}+{{ images.count|add:"-5" }} photos{% endif %}">
+        {% if url %}
+        <img class="gallery-img" src="{{ url }}" alt="{{ img.alt_text|default:property.name }}" data-index="{{ forloop.counter }}" onclick="openLightbox({{ forloop.counter }})">
+        {% else %}
+        <div class="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+          <i class="fas fa-image text-3xl text-gray-300"></i>
+        </div>
+        {% endif %}
+      </div>
+      {% endwith %}
+      {% endfor %}
+
+    {% else %}
+    <!-- No images fallback -->
+    <div class="gallery-cell primary col-span-2">
+      <div class="w-full h-full bg-gradient-to-br from-[#0b1f2e] to-[#123754] flex items-center justify-center">
+        <i class="fas fa-hotel text-8xl text-white/10"></i>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Show all photos button -->
+    {% if images.count > 1 %}
+    <button onclick="openLightbox(0)"
+            class="absolute bottom-4 right-4 bg-white/95 hover:bg-white text-gray-800 text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 border border-gray-200 transition z-10">
+      <i class="fas fa-th-large text-gray-500"></i>
+      Show all {{ images.count }} photos
+    </button>
+    {% endif %}
+  </div>
+
+</div>
+{% endwith %}
+
+<!-- ══════════════════════════════════════════════════
+     LIGHTBOX
+════════════════════════════════════════════════════ -->
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Photo gallery">
+  <button id="lightbox-close" onclick="closeLightbox()" aria-label="Close gallery"><i class="fas fa-times"></i></button>
+  <img id="lb-img" src="" alt="" />
+  <p id="lightbox-caption"></p>
+  <div id="lightbox-nav">
+    <button class="lb-btn" onclick="lbPrev()" aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button>
+    <span id="lightbox-counter">1 / 1</span>
+    <button class="lb-btn" onclick="lbNext()" aria-label="Next photo"><i class="fas fa-chevron-right"></i></button>
+  </div>
+  <div id="lb-thumbs"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MAIN CONTENT + SIDEBAR
+════════════════════════════════════════════════════ -->
+<section class="max-w-7xl mx-auto px-4 py-6">
+  <div class="grid lg:grid-cols-12 gap-8">
+
+    <!-- ── LEFT COLUMN ────────────────────────────────── -->
+    <div class="lg:col-span-8 space-y-6">
+
+      <!-- Quick facts strip -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div class="flex flex-wrap items-center gap-5 text-sm text-gray-700">
+          {% if property.check_in_time %}<span class="flex items-center gap-1.5"><i class="fas fa-sign-in-alt text-[#0071c2]"></i><strong>Check-in</strong> {{ property.check_in_time }}</span>{% endif %}
+          {% if property.check_out_time %}<span class="flex items-center gap-1.5"><i class="fas fa-sign-out-alt text-[#0071c2]"></i><strong>Check-out</strong> {{ property.check_out_time }}</span>{% endif %}
+          {% if property.star_rating %}<span class="flex items-center gap-1.5"><i class="fas fa-star text-amber-400"></i><strong>{{ property.star_rating }}-star</strong> property</span>{% endif %}
+        </div>
+        <div class="flex flex-wrap gap-2 mt-4">
+
+          {# ── Cancellation policy signal ── #}
+          {% if cancel_signal %}
+            {% if cancel_signal_class == 'green' %}
+            <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3.5 py-2.5 text-sm text-green-800">
+              <i class="fas fa-undo text-green-600 shrink-0"></i>
+              <span class="font-medium">{{ cancel_signal }}</span>
+            </div>
+            {% elif cancel_signal_class == 'red' %}
+            <div class="inline-flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 text-sm text-red-800">
+              <i class="fas fa-ban text-red-500 shrink-0"></i>
+              <span class="font-medium">{{ cancel_signal }}</span>
+            </div>
+            {% else %}
+            <div class="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-700">
+              <i class="fas fa-file-contract text-gray-400 shrink-0"></i>
+              <span>{{ cancel_signal }}</span>
+            </div>
+            {% endif %}
+          {% endif %}
+
+          {# ── Tax signal ── #}
+          {% if tax_signal %}
+            {% if tax_signal_class == 'green' %}
+            <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3.5 py-2.5 text-sm text-green-800">
+              <i class="fas fa-receipt text-green-600 shrink-0"></i>
+              <span class="font-medium">{{ tax_signal }}</span>
+            </div>
+            {% else %}
+            <div class="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-sm text-amber-800">
+              <i class="fas fa-receipt text-amber-600 shrink-0"></i>
+              <span>{{ tax_signal }}</span>
+            </div>
+            {% endif %}
+          {% endif %}
+
+          {# ── Payment timing signal ── #}
+          {% if pay_signal %}
+            {% if pay_signal_class == 'blue' %}
+            <div class="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3.5 py-2.5 text-sm text-blue-800">
+              <i class="fas fa-credit-card text-blue-600 shrink-0"></i>
+              <span>{{ pay_signal }}</span>
+            </div>
+            {% else %}
+            <div class="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 text-sm text-amber-800">
+              <i class="fas fa-building-columns text-amber-600 shrink-0"></i>
+              <span>{{ pay_signal }}</span>
+            </div>
+            {% endif %}
+          {% endif %}
+
+          {# ── Meal / breakfast signal ── #}
+          {% if meal_signal %}
+          <div class="inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3.5 py-2.5 text-sm text-orange-800">
+            <span class="text-base leading-none shrink-0">☕</span>
+            <span>{{ meal_signal }}</span>
+          </div>
+          {% endif %}
+
+          {# ── Verified badge (only real when property.is_verified) ── #}
+          {% if property.is_verified %}
+          <div class="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3.5 py-2.5 text-sm text-blue-800">
+            <i class="fas fa-shield-check text-blue-600 shrink-0"></i>
+            <span class="font-medium">Verified property</span>
+          </div>
+          {% endif %}
+
+          {# ── Instant booking when applicable ── #}
+          {% if property.instant_booking %}
+          <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3.5 py-2.5 text-sm text-green-800">
+            <i class="fas fa-bolt text-green-600 shrink-0"></i>
+            <span class="font-medium">Instant confirmation</span>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+
+      <!-- Guest rating summary -->
+      {% if property.average_rating %}
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-center gap-5">
+          <div class="shrink-0 text-center">
+            <div class="score-box inline-flex items-center justify-center w-16 h-16 bg-[#003580] text-white text-2xl font-bold">
+              {{ property.average_rating|floatformat:1 }}
+            </div>
+            <p class="text-xs text-gray-500 mt-1 font-medium">
+              {% with r=property.average_rating %}
+              {% if r >= 4.5 %}Exceptional{% elif r >= 4.0 %}Very Good{% elif r >= 3.5 %}Good{% else %}Fair{% endif %}
+              {% endwith %}
+            </p>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-gray-900 mb-0.5">Based on {{ reviews.count }} verified review{{ reviews.count|pluralize }}</p>
+            <p class="text-xs text-gray-500">Guests who stayed here rate it highly for location, value, and hospitality.</p>
+            <!-- Mock sub-scores (extend with real data when review sub-scores are added) -->
+            <div class="grid grid-cols-2 gap-x-6 gap-y-2 mt-3">
+              {% for label in "Cleanliness,Location,Value,Staff"|split:"," %}
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 w-20 shrink-0">{{ label }}</span>
+                <div class="score-bar-bg flex-1"><div class="score-bar-fill" style="width:{{ property.average_rating|floatformat:0|default:4 }}0%"></div></div>
+                <span class="text-xs font-semibold text-gray-700 w-8 text-right">{{ property.average_rating|floatformat:1 }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Description -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-3">About this property</h2>
+        <p class="text-gray-700 leading-relaxed" id="desc-text">{{ property.description|truncatechars:400 }}</p>
+        {% if property.description|length > 400 %}
+        <button onclick="expandDesc()" id="desc-toggle" class="text-[#0071c2] hover:underline text-sm mt-2 font-medium">Read more <i class="fas fa-chevron-down text-xs"></i></button>
+        <p class="text-gray-700 leading-relaxed hidden" id="desc-full">{{ property.description }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Facilities / Amenities -->
+      {% if property.amenities.exists %}
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Most popular facilities</h2>
+        <div class="flex flex-wrap gap-2" id="amenities-short">
+          {% for amenity in property.amenities.all|slice:":12" %}
+          <span class="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-full text-sm">
+            <i class="fas fa-check text-[#0071c2] text-xs"></i> {{ amenity.name }}
+          </span>
+          {% endfor %}
+        </div>
+        {% if property.amenities.count > 12 %}
+        <div class="flex flex-wrap gap-2 mt-2 hidden" id="amenities-all">
+          {% for amenity in property.amenities.all|slice:"12:" %}
+          <span class="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-full text-sm">
+            <i class="fas fa-check text-[#0071c2] text-xs"></i> {{ amenity.name }}
+          </span>
+          {% endfor %}
+        </div>
+        <button onclick="toggleAmenities()" id="amenities-toggle" class="text-[#0071c2] hover:underline text-sm mt-3 font-medium">
+          Show all {{ property.amenities.count }} facilities <i class="fas fa-chevron-down text-xs"></i>
+        </button>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Property details -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Property details</h2>
+        <div class="grid md:grid-cols-2 gap-5 text-sm text-gray-700">
+          <div class="space-y-3">
+            <div class="flex items-start gap-2"><i class="fas fa-sign-in-alt text-[#0071c2] mt-0.5 w-4"></i><div><strong>Check-in</strong><br><span class="text-gray-500">{{ property.check_in_time|default:'Flexible' }}</span></div></div>
+            <div class="flex items-start gap-2"><i class="fas fa-sign-out-alt text-[#0071c2] mt-0.5 w-4"></i><div><strong>Check-out</strong><br><span class="text-gray-500">{{ property.check_out_time|default:'Flexible' }}</span></div></div>
+            {% if property.star_rating %}<div class="flex items-start gap-2"><i class="fas fa-star text-amber-400 mt-0.5 w-4"></i><div><strong>Official rating</strong><br><span class="text-gray-500">{{ property.star_rating }} stars</span></div></div>{% endif %}
+          </div>
+          <div class="space-y-3">
+            {% if property.cancellation_policy %}<div class="flex items-start gap-2"><i class="fas fa-undo text-green-500 mt-0.5 w-4"></i><div><strong>Cancellation</strong><br><span class="text-gray-500">{{ property.cancellation_policy|truncatechars:100 }}</span></div></div>{% endif %}
+            {% if property.house_rules %}<div class="flex items-start gap-2"><i class="fas fa-scroll text-[#0071c2] mt-0.5 w-4"></i><div><strong>House rules</strong><br><span class="text-gray-500">{{ property.house_rules|truncatechars:100 }}</span></div></div>{% endif %}
+            {% if property.special_instructions %}<div class="flex items-start gap-2"><i class="fas fa-info-circle text-[#0071c2] mt-0.5 w-4"></i><div><strong>Special notes</strong><br><span class="text-gray-500">{{ property.special_instructions|truncatechars:100 }}</span></div></div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Room / Rate Table ──────────────────────────────────── -->
+      {% if room_rate_rows %}
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6" id="room-table">
+        <h2 class="text-xl font-bold text-gray-900 mb-5">Available rooms</h2>
+        <div class="flex flex-col gap-3 mb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p class="text-sm text-gray-600">Per-room rates include live occupancy, cancellation, tax, and remaining inventory.</p>
+            {% if selected_nights %}
+            <p class="text-xs text-gray-500 mt-1">{{ selected_nights }} night{{ selected_nights|pluralize }} stay for {{ selected_guests }} guest{{ selected_guests|pluralize }}</p>
+            {% else %}
+            <p class="text-xs text-gray-500 mt-1">Add dates to convert nightly pricing into a final payable total.</p>
+            {% endif %}
+          </div>
+          <form method="get" class="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full sm:w-auto">
+            <input type="date" name="check_in" value="{% if selected_check_in %}{{ selected_check_in|date:'Y-m-d' }}{% endif %}" min="{{ today|date:'Y-m-d' }}" class="rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-800">
+            <input type="date" name="check_out" value="{% if selected_check_out %}{{ selected_check_out|date:'Y-m-d' }}{% endif %}" min="{{ today|date:'Y-m-d' }}" class="rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-800">
+            <div class="flex gap-2">
+              <select name="guests" class="rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-800 flex-1">
+                <option value="1" {% if selected_guests == 1 %}selected{% endif %}>1 guest</option>
+                <option value="2" {% if selected_guests == 2 %}selected{% endif %}>2 guests</option>
+                <option value="3" {% if selected_guests == 3 %}selected{% endif %}>3 guests</option>
+                <option value="4" {% if selected_guests == 4 %}selected{% endif %}>4 guests</option>
+                <option value="5" {% if selected_guests == 5 %}selected{% endif %}>5 guests</option>
+              </select>
+              <button type="submit" class="bg-[#0071c2] hover:bg-[#005999] text-white px-4 py-2 rounded-xl text-sm font-semibold">Update</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="overflow-x-auto rounded-2xl border border-gray-200">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr class="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th class="px-4 py-3">Room</th>
+                <th class="px-4 py-3">Occupancy</th>
+                <th class="px-4 py-3">Meal plan</th>
+                <th class="px-4 py-3">Cancellation</th>
+                <th class="px-4 py-3">Taxes</th>
+                <th class="px-4 py-3">Remaining</th>
+                <th class="px-4 py-3">Final payable</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+              {% for row in room_rate_rows %}
+              <tr class="align-top">
+                <td class="px-4 py-4 min-w-[280px]">
+                  <div class="flex gap-4">
+                    <div class="w-24 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 shrink-0">
+                      {% with images=row.room.images.all %}
+                      {% if images %}
+                        {% with ri=images.0 %}
+                        <img src="{{ ri|property_image_url }}" alt="{{ row.room.name }}" class="w-full h-full object-cover">
+                        {% endwith %}
+                      {% elif row.room.main_image %}
+                        <img src="{{ row.room.main_image.url }}" alt="{{ row.room.name }}" class="w-full h-full object-cover">
+                      {% else %}
+                        <div class="w-full h-full flex items-center justify-center">
+                          <i class="fas fa-bed text-2xl text-blue-300"></i>
+                        </div>
+                      {% endif %}
+                      {% endwith %}
+                    </div>
+                    <div>
+                      <p class="font-semibold text-gray-900">{{ row.room.name }}</p>
+                      <p class="text-sm text-[#003580] font-semibold mt-1">{{ row.nightly_label }}</p>
+                      {% if row.room.bed_type or row.room.room_size or row.room.bathroom_count %}
+                      <div class="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                        {% if row.room.bed_type %}<span>{{ row.room.bed_type }}</span>{% endif %}
+                        {% if row.room.room_size %}<span>{{ row.room.room_size|floatformat:0 }} sq m</span>{% endif %}
+                        {% if row.room.bathroom_count %}<span>{{ row.room.bathroom_count }} bath{{ row.room.bathroom_count|pluralize }}</span>{% endif %}
+                      </div>
+                      {% endif %}
+                      {% if row.room.description %}
+                      <p class="text-xs text-gray-500 mt-2 line-clamp-2">{{ row.room.description }}</p>
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-700">{{ row.occupancy_label }}</td>
+                <td class="px-4 py-4 text-sm text-gray-700">{{ row.meal_plan_label }}</td>
+                <td class="px-4 py-4 text-sm text-gray-700 min-w-[210px]">{{ row.cancellation_label }}</td>
+                <td class="px-4 py-4 text-sm text-gray-700">{{ row.taxes_label }}</td>
+                <td class="px-4 py-4">
+                  {% if row.remaining_inventory <= 0 %}
+                  <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">Sold out</span>
+                  {% elif row.remaining_inventory == 1 %}
+                  <span class="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">1 room left</span>
+                  {% else %}
+                  <span class="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">{{ row.remaining_inventory }} rooms left</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-4 min-w-[180px]">
+                  <p class="font-bold text-gray-900">{{ row.final_total_label }}</p>
+                  {% if row.has_valid_stay %}
+                  <p class="text-xs text-gray-500 mt-1">For {{ row.nights }} night{{ row.nights|pluralize }}</p>
+                  {% else %}
+                  <p class="text-xs text-gray-500 mt-1">Nightly payable estimate</p>
+                  {% endif %}
+                  {% if row.extra_guest_label %}
+                  <p class="text-xs text-gray-500 mt-1">{{ row.extra_guest_label }}</p>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-4 text-right min-w-[150px]">
+                  {% if row.remaining_inventory <= 0 %}
+                  <span class="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-400">Unavailable</span>
+                  {% else %}
+                  <a href="{% url 'bookings:create' property.id %}?{{ row.book_query }}" class="inline-flex items-center justify-center bg-[#0071c2] hover:bg-[#005999] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-sm">
+                    Reserve
+                  </a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+      <!-- Activities -->
+      {% if property.property_activities.exists %}
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Activities & experiences</h2>
+        <div class="grid sm:grid-cols-2 gap-4">
+          {% for activity in property.property_activities.all %}
+          {% if activity.is_active %}
+          <div class="border border-gray-200 rounded-xl p-4 hover:shadow-sm transition">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <h3 class="font-semibold text-gray-900 text-sm">{{ activity.name }}</h3>
+              {% if activity.price_per_person %}<span class="text-sm font-bold text-[#003580] shrink-0">${{ activity.price_per_person|floatformat:0 }}<span class="text-xs font-normal text-gray-400">/person</span></span>{% endif %}
+            </div>
+            {% if activity.description %}<p class="text-xs text-gray-600 mb-2">{{ activity.description|truncatechars:90 }}</p>{% endif %}
+            <div class="flex flex-wrap gap-1.5 text-xs">
+              <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ activity.get_activity_type_display }}</span>
+              {% if activity.duration %}<span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"><i class="fas fa-clock mr-0.5"></i>{{ activity.duration }}</span>{% endif %}
+              <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ activity.get_difficulty_display }}</span>
+            </div>
+            {% if activity.included %}<p class="text-xs text-green-600 mt-2"><i class="fas fa-check-circle mr-1"></i>{{ activity.included|truncatechars:80 }}</p>{% endif %}
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Reviews -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-xl font-bold text-gray-900">
+            Guest reviews
+            {% if reviews %}<span class="text-base font-normal text-gray-400 ml-1">({{ reviews.count }})</span>{% endif %}
+          </h2>
+          {% if user.is_authenticated and review_booking %}
+          <a href="{% url 'reviews:review_create' review_booking.id %}" class="text-sm text-[#0071c2] hover:underline font-medium flex items-center gap-1">
+            <i class="fas fa-pen text-xs"></i> Write a review
+          </a>
+          {% endif %}
+        </div>
+        {% if reviews %}
+        <div class="space-y-4">
+          {% for review in reviews %}
+          <article class="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 transition">
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#f6b17a] to-[#e89c60] flex items-center justify-center text-white font-bold text-sm">
+                  {{ review.user.first_name|default:review.user.email|first|upper }}
+                </div>
+                <div>
+                  <p class="font-semibold text-gray-900 text-sm">{{ review.user.get_full_name|default:review.user.email }}</p>
+                  <p class="text-xs text-gray-400">{{ review.created_at|date:"M Y" }}</p>
+                </div>
+              </div>
+              <span class="score-box px-2.5 py-1 bg-[#003580] text-white text-xs font-bold inline-block">{{ review.overall_rating|floatformat:1 }}</span>
+            </div>
+            {% if review.title %}<p class="font-semibold text-gray-800 text-sm mb-1">{{ review.title }}</p>{% endif %}
+            <p class="text-sm text-gray-700 leading-relaxed">{{ review.comment|default:''|truncatechars:250 }}</p>
+            {% if review.positive_comment or review.negative_comment %}
+            <div class="grid sm:grid-cols-2 gap-3 mt-3">
+              {% if review.positive_comment %}
+              <div class="bg-green-50 rounded-lg p-2.5 text-xs text-green-800">
+                <p class="font-semibold mb-0.5"><i class="fas fa-thumbs-up mr-1"></i>Liked</p>
+                {{ review.positive_comment|truncatechars:100 }}
+              </div>
+              {% endif %}
+              {% if review.negative_comment %}
+              <div class="bg-red-50 rounded-lg p-2.5 text-xs text-red-800">
+                <p class="font-semibold mb-0.5"><i class="fas fa-thumbs-down mr-1"></i>Could improve</p>
+                {{ review.negative_comment|truncatechars:100 }}
+              </div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+          <div class="text-5xl mb-3">💬</div>
+          <p class="text-gray-500 text-sm">No published reviews yet.</p>
+          <p class="text-gray-400 text-xs mt-1">Be the first guest to share your experience.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Map (if coordinates available) -->
+      {% if property.latitude and property.longitude %}
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-1">Location</h2>
+        <p class="text-sm text-gray-500 mb-4">{{ property.city }}, {{ property.country.name }}</p>
+        <div id="detail-map" class="rounded-xl overflow-hidden" style="height: 280px;"></div>
+        <p class="text-xs text-gray-400 mt-2"><i class="fas fa-info-circle mr-1"></i>Exact address provided after booking confirmation.</p>
+      </div>
+      {% endif %}
+
+    </div><!-- /left col -->
+
+    <!-- ── STICKY BOOKING WIDGET ──────────────────────── -->
+    <aside class="lg:col-span-4">
+      <div class="widget-sticky">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-xl p-5">
+
+          <!-- Price -->
+          <div class="flex items-end justify-between mb-1">
+            <div>
+              <span class="text-3xl font-bold text-gray-900">${{ property.minimum_price|default:'—' }}</span>
+              <span class="text-sm text-gray-500"> / night</span>
+            </div>
+            {% if property.average_rating %}
+            <div class="flex items-center gap-1 text-sm">
+              <i class="fas fa-star text-amber-400 text-xs"></i>
+              <span class="font-semibold text-gray-800">{{ property.average_rating|floatformat:1 }}</span>
+              <span class="text-gray-400">({{ reviews.count }})</span>
+            </div>
+            {% endif %}
+          </div>
+          <p class="text-xs text-gray-400 mb-5">Taxes and fees may apply</p>
+
+          <!-- Availability form -->
+          <form method="get" action="{% url 'bookings:create' property.id %}" class="space-y-3">
+            <div class="border border-gray-300 rounded-xl overflow-hidden divide-y divide-gray-200 focus-within:border-[#0071c2] focus-within:ring-2 focus-within:ring-[#0071c2]/20 transition">
+              <div class="grid grid-cols-2 divide-x divide-gray-200">
+                <div class="p-3">
+                  <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Check-in</label>
+                  <input type="date" name="check_in" id="widget-checkin" class="w-full text-sm text-gray-800 focus:outline-none bg-transparent" required>
+                </div>
+                <div class="p-3">
+                  <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Check-out</label>
+                  <input type="date" name="check_out" id="widget-checkout" class="w-full text-sm text-gray-800 focus:outline-none bg-transparent" required>
+                </div>
+              </div>
+              <div class="p-3">
+                <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Guests</label>
+                <select name="guests" class="w-full text-sm text-gray-800 focus:outline-none bg-transparent">
+                  <option value="1">1 guest</option>
+                  <option value="2" selected>2 guests</option>
+                  <option value="3">3 guests</option>
+                  <option value="4">4 guests</option>
+                  <option value="5">5 guests</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Price breakdown (shown once dates selected) -->
+            <div id="price-breakdown" class="hidden bg-gray-50 rounded-xl p-4 text-sm space-y-2">
+              <div class="flex justify-between text-gray-700">
+                <span id="breakdown-label">${{ property.minimum_price|default:0 }} × <span id="breakdown-nights">—</span> nights</span>
+                <span id="breakdown-subtotal">—</span>
+              </div>
+              <div class="flex justify-between text-gray-700">
+                <span>Taxes & fees (est.)</span>
+                <span id="breakdown-tax">—</span>
+              </div>
+              <div class="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
+                <span>Total</span>
+                <span id="breakdown-total">—</span>
+              </div>
+            </div>
+
+            {% if user.is_authenticated %}
+            <button type="submit" class="w-full bg-[#0071c2] hover:bg-[#005999] text-white py-3.5 rounded-xl font-bold text-base transition-colors shadow-md">
+              Reserve <i class="fas fa-arrow-right ml-1.5 text-sm"></i>
+            </button>
+            {% else %}
+            <a href="{% url 'accounts:login' %}?next={% url 'bookings:create' property.id %}"
+               class="block w-full bg-[#0071c2] hover:bg-[#005999] text-white py-3.5 rounded-xl font-bold text-base transition-colors shadow-md text-center">
+              Sign in to reserve
+            </a>
+            {% endif %}
+          </form>
+
+          <p class="text-xs text-center text-gray-400 mt-3">You won't be charged yet</p>
+
+          <!-- Policy trust list — exact text from the property's own data -->
+          <ul class="text-xs mt-4 space-y-2 border-t border-gray-100 pt-4">
+            <li class="flex items-start gap-2 text-gray-600">
+              <i class="fas fa-lock text-[#0071c2] w-4 mt-0.5 shrink-0"></i>
+              Secure checkout — never pay off-platform
+            </li>
+
+            {# Cancellation #}
+            {% if cancel_signal %}
+            <li class="flex items-start gap-2 {% if cancel_signal_class == 'green' %}text-green-700{% elif cancel_signal_class == 'red' %}text-red-700{% else %}text-gray-600{% endif %}">
+              <i class="{% if cancel_signal_class == 'green' %}fas fa-undo text-green-600{% elif cancel_signal_class == 'red' %}fas fa-ban text-red-500{% else %}fas fa-file-contract text-gray-400{% endif %} w-4 mt-0.5 shrink-0"></i>
+              <span>{{ cancel_signal }}</span>
+            </li>
+            {% else %}
+            <li class="flex items-start gap-2 text-gray-500">
+              <i class="fas fa-file-contract text-gray-400 w-4 mt-0.5 shrink-0"></i>
+              See cancellation policy below
+            </li>
+            {% endif %}
+
+            {# Taxes #}
+            {% if tax_signal %}
+            <li class="flex items-start gap-2 {% if tax_signal_class == 'green' %}text-green-700{% else %}text-amber-700{% endif %}">
+              <i class="fas fa-receipt {% if tax_signal_class == 'green' %}text-green-600{% else %}text-amber-600{% endif %} w-4 mt-0.5 shrink-0"></i>
+              <span>{{ tax_signal }}</span>
+            </li>
+            {% endif %}
+
+            {# Payment methods #}
+            {% if pay_signal %}
+            <li class="flex items-start gap-2 text-blue-700">
+              <i class="fas fa-credit-card text-blue-600 w-4 mt-0.5 shrink-0"></i>
+              <span>{{ pay_signal }}</span>
+            </li>
+            {% endif %}
+
+            {# Breakfast #}
+            {% if meal_signal %}
+            <li class="flex items-start gap-2 text-orange-700">
+              <span class="w-4 mt-0.5 shrink-0 text-center text-sm leading-none">☕</span>
+              <span>{{ meal_signal }}</span>
+            </li>
+            {% endif %}
+          </ul>
+
+          <!-- Edit link for host -->
+          {% if user.is_authenticated and property.host_id == user.id %}
+          <div class="mt-4 pt-4 border-t border-gray-100 text-center">
+            <a href="{% url 'properties:edit' property.slug %}" class="text-sm text-[#0071c2] hover:underline font-medium">
+              <i class="fas fa-edit mr-1"></i> Edit this listing
+            </a>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Wishlist card (below widget) -->
+        {% if user.is_authenticated %}
+        <div class="mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-gray-900">Save for later</p>
+            <p class="text-xs text-gray-500">Add to your wishlist</p>
+          </div>
+          <form method="post" action="{% url 'properties:toggle_favorite' property.slug %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold transition
+                    {% if is_favorited %}border-red-200 bg-red-50 text-red-600 hover:bg-red-100{% else %}border-gray-200 text-gray-700 hover:border-red-300 hover:bg-red-50 hover:text-red-600{% endif %}">
+              <svg class="w-4 h-4" fill="{% if is_favorited %}currentColor{% else %}none{% endif %}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+              </svg>
+              {% if is_favorited %}Saved{% else %}Save{% endif %}
+            </button>
+          </form>
+        </div>
+        {% endif %}
+
+      </div>
+    </aside>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     MAP + LIGHTBOX SCRIPTS
+════════════════════════════════════════════════════ -->
+{% if property.latitude and property.longitude %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Gallery image data ───────────────────────────────────
+const GALLERY_IMAGES = [
+  {% with images=property.images.all %}
+  {% for img in images %}
+  {% with url=img.get_thumbnail_url %}
+  {% if url %}{ src: "{{ url|escapejs }}", caption: "{{ img.caption|default:property.name|escapejs }}" },{% endif %}
+  {% endwith %}
+  {% endfor %}
+  {% endwith %}
+];
+
+// ── Lightbox logic ───────────────────────────────────────
+let lbIndex = 0;
+const lb = document.getElementById('lightbox');
+const lbImg = document.getElementById('lb-img');
+const lbCounter = document.getElementById('lightbox-counter');
+const lbCaption = document.getElementById('lightbox-caption');
+const lbThumbs = document.getElementById('lb-thumbs');
+
+function buildThumbs() {
+  lbThumbs.innerHTML = '';
+  GALLERY_IMAGES.forEach((img, i) => {
+    const t = document.createElement('img');
+    t.src = img.src;
+    t.alt = img.caption;
+    t.onclick = () => lbGoTo(i);
+    if (i === lbIndex) t.classList.add('active');
+    lbThumbs.appendChild(t);
+  });
+}
+
+function openLightbox(index) {
+  if (GALLERY_IMAGES.length === 0) return;
+  lbIndex = index;
+  buildThumbs();
+  lbGoTo(lbIndex);
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  lb.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function lbGoTo(index) {
+  lbIndex = (index + GALLERY_IMAGES.length) % GALLERY_IMAGES.length;
+  const img = GALLERY_IMAGES[lbIndex];
+  lbImg.src = img.src;
+  lbCaption.textContent = img.caption;
+  lbCounter.textContent = `${lbIndex + 1} / ${GALLERY_IMAGES.length}`;
+  // Update thumb highlights
+  lbThumbs.querySelectorAll('img').forEach((t, i) => t.classList.toggle('active', i === lbIndex));
+  // Scroll active thumb into view
+  const activeThumb = lbThumbs.querySelectorAll('img')[lbIndex];
+  if (activeThumb) activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
+function lbNext() { lbGoTo(lbIndex + 1); }
+function lbPrev() { lbGoTo(lbIndex - 1); }
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (!lb.classList.contains('open')) return;
+  if (e.key === 'ArrowRight') lbNext();
+  if (e.key === 'ArrowLeft') lbPrev();
+  if (e.key === 'Escape') closeLightbox();
+});
+
+// Click backdrop to close
+lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
+
+// More overlay click
+document.querySelectorAll('.more-overlay').forEach(el => {
+  el.addEventListener('click', () => openLightbox(4));
+});
+
+// ── Wishlist toggle (optimistic UI) ─────────────────────
+function toggleWishlist(btn) {
+  const isSaved = btn.classList.contains('saved');
+  const label = document.getElementById('wishlist-label');
+  if (isSaved) {
+    btn.classList.remove('saved');
+    label.textContent = 'Save';
+  } else {
+    btn.classList.add('saved');
+    label.textContent = 'Saved';
+  }
+  // Actually submit the form
+  document.getElementById('wishlist-form').submit();
+}
+
+// ── Share ────────────────────────────────────────────────
+function shareProperty() {
+  if (navigator.share) {
+    navigator.share({ title: "{{ property.name|escapejs }}", url: window.location.href });
+  } else {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      const btn = event.currentTarget;
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-check text-green-500"></i> Copied!';
+      setTimeout(() => btn.innerHTML = orig, 2000);
+    });
+  }
+}
+
+// ── Description expand ──────────────────────────────────
+function expandDesc() {
+  document.getElementById('desc-text').classList.add('hidden');
+  document.getElementById('desc-full').classList.remove('hidden');
+  document.getElementById('desc-toggle').classList.add('hidden');
+}
+
+// ── Amenities expand ─────────────────────────────────────
+function toggleAmenities() {
+  const extra = document.getElementById('amenities-all');
+  const btn = document.getElementById('amenities-toggle');
+  const isHidden = extra.classList.contains('hidden');
+  extra.classList.toggle('hidden', !isHidden);
+  btn.innerHTML = isHidden
+    ? 'Show fewer <i class="fas fa-chevron-up text-xs"></i>'
+    : `Show all {{ property.amenities.count }} facilities <i class="fas fa-chevron-down text-xs"></i>`;
+}
+
+// ── Price breakdown calculator ────────────────────────────
+const checkinInput = document.getElementById('widget-checkin');
+const checkoutInput = document.getElementById('widget-checkout');
+const priceBreakdown = document.getElementById('price-breakdown');
+const basePrice = {{ property.minimum_price|default:0 }};
+
+function updateBreakdown() {
+  const ci = checkinInput.value, co = checkoutInput.value;
+  if (!ci || !co) { priceBreakdown.classList.add('hidden'); return; }
+  const nights = Math.round((new Date(co) - new Date(ci)) / 86400000);
+  if (nights <= 0) { priceBreakdown.classList.add('hidden'); return; }
+  const subtotal = basePrice * nights;
+  const tax = Math.round(subtotal * 0.12);
+  const total = subtotal + tax;
+  document.getElementById('breakdown-nights').textContent = nights;
+  document.getElementById('breakdown-label').firstChild.textContent = `$${basePrice} × `;
+  document.getElementById('breakdown-subtotal').textContent = `$${subtotal.toLocaleString()}`;
+  document.getElementById('breakdown-tax').textContent = `$${tax.toLocaleString()}`;
+  document.getElementById('breakdown-total').textContent = `$${total.toLocaleString()}`;
+  priceBreakdown.classList.remove('hidden');
+}
+
+if (checkinInput && checkoutInput) {
+  const today = new Date().toISOString().split('T')[0];
+  checkinInput.min = today;
+  checkoutInput.min = today;
+  checkinInput.addEventListener('change', () => {
+    if (checkoutInput.value && checkoutInput.value <= checkinInput.value) checkoutInput.value = '';
+    checkoutInput.min = checkinInput.value || today;
+    updateBreakdown();
+  });
+  checkoutInput.addEventListener('change', updateBreakdown);
+}
+
+// ── Leaflet map ──────────────────────────────────────────
+{% if property.latitude and property.longitude %}
+(function() {
+  const map = L.map('detail-map', { scrollWheelZoom: false, zoomControl: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(map);
+
+  const lat = {{ property.latitude }};
+  const lng = {{ property.longitude }};
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="background:#003580;color:#fff;font-weight:700;font-size:11px;padding:5px 10px;border-radius:20px;border:2px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.3);white-space:nowrap;">${'{{ property.name|escapejs }}'}</div>`,
+    iconAnchor: [60, 16],
+  });
+
+  L.marker([lat, lng], { icon }).addTo(map)
+    .bindPopup(`<strong>{{ property.name|escapejs }}</strong><br>{{ property.city|escapejs }}, {{ property.country.name|escapejs }}`);
+
+  map.setView([lat, lng], 14);
+})();
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Verify Your Email - Marvel Safari{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-xl mx-auto">
+    <div class="card card-body lg:p-8">
+      <div class="text-center mb-6">
+        <div class="mx-auto h-14 w-14 bg-[#003580] rounded-full flex items-center justify-center mb-4">
+          <i class="fa-regular fa-envelope text-[#feba02] text-xl"></i>
+        </div>
+        <h1 class="font-display text-3xl font-bold text-gray-900">Verify Your Email</h1>
+        <p class="text-gray-600 mt-2">
+          We sent a 6-digit code to
+          <strong>{% if email %}{{ email }}{% elif request.user.is_authenticated %}{{ request.user.email }}{% else %}your email{% endif %}</strong>.
+        </p>
+      </div>
+
+      <form method="post" action="{% url 'accounts:verify_email' %}" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="form-label" for="code">Verification code</label>
+          <input id="code" type="text" name="code" maxlength="6" pattern="\d{6}" class="form-input text-center tracking-[0.35em]" placeholder="123456" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-full">Verify Email</button>
+      </form>
+
+      <div class="mt-6 text-center text-sm text-gray-600">
+        <p>Didn't receive a code? <a href="{% url 'accounts:resend_verification' %}" class="text-[#003580] font-semibold hover:underline">Resend email</a></p>
+        <p class="mt-2"><a href="{% url 'accounts:login' %}" class="text-[#003580] hover:underline">Back to login</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

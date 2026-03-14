@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Booking Confirmation {{ booking.id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; color: #0f172a; margin: 40px; }
+        h1, h2 { margin-bottom: 8px; }
+        .muted { color: #64748b; }
+        .card { border: 1px solid #dbe2ea; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .row { display: flex; justify-content: space-between; margin: 6px 0; }
+    </style>
+</head>
+<body>
+    <h1>Booking Confirmation</h1>
+    <p class="muted">Reference #{{ booking.id }} | Generated {{ generated_at|date:'M d, Y H:i' }}</p>
+
+    <div class="card">
+        <h2>{{ booking.property.name }}</h2>
+        <p class="muted">{{ booking.property.city }}, {{ booking.property.country.name }}</p>
+        {% if booking.room_type %}<p>Room type: {{ booking.room_type.name }}</p>{% endif %}
+        <div class="row"><span>Check-in</span><strong>{{ booking.check_in_date|date:'M d, Y' }}</strong></div>
+        <div class="row"><span>Check-out</span><strong>{{ booking.check_out_date|date:'M d, Y' }}</strong></div>
+        <div class="row"><span>Guests</span><strong>{{ booking.guests }}</strong></div>
+        <div class="row"><span>Status</span><strong>{{ booking.get_status_display }}</strong></div>
+    </div>
+
+    <div class="card">
+        <h2>Payment</h2>
+        <div class="row"><span>Total</span><strong>${{ booking.total_price }}</strong></div>
+        <div class="row"><span>Payment status</span><strong>{{ booking.payment_summary }}</strong></div>
+        <div class="row"><span>Refund status</span><strong>{{ booking.refund_summary }}</strong></div>
+    </div>
+
+    <p class="muted">Need help? Contact {{ support_email }}.</p>
+</body>
+</html>

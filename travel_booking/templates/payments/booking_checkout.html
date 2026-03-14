@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block title %}Secure Checkout - Marvel Safari{% endblock %}
+
+{% block content %}
+<section class="max-w-6xl mx-auto px-4 py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2">
+            <div class="card card-body">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Secure checkout</h1>
+                <p class="text-sm text-gray-600 mb-6">
+                    {{ booking.property.name|default:"Your booking" }} | {{ booking.check_in_date }} to {{ booking.check_out_date }}
+                </p>
+
+                {% if form.non_field_errors %}
+                <div class="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+
+                <form method="post" id="checkout-form" class="space-y-6">
+                    {% csrf_token %}
+
+                    <fieldset id="payment-options" class="space-y-3">
+                        <legend class="form-label">Payment method</legend>
+                        {% for choice in form.payment_option %}
+                        <label class="block border rounded-xl p-4 cursor-pointer transition-colors bg-white border-gray-200 hover:border-gray-300 payment-option" data-payment-option>
+                            <div class="flex items-start gap-3">
+                                <div class="pt-1">{{ choice.tag }}</div>
+                                <div>
+                                    <p class="font-semibold text-gray-900">{{ choice.choice_label }}</p>
+                                    {% if choice.choice_value == card_payment_option %}
+                                        {% if use_stripe_for_card %}
+                                        <p class="text-xs text-gray-500">Uses Stripe Hosted Checkout for real card processing.</p>
+                                        {% elif allow_simulated_payments %}
+                                        <p class="text-xs text-gray-500">Card details are validated before simulated authorization.</p>
+                                        {% else %}
+                                        <p class="text-xs text-red-600">Card gateway is not configured yet. Choose another payment method.</p>
+                                        {% endif %}
+                                    {% elif choice.choice_value == 'paynow' %}
+                                        {% if use_paynow_gateway %}
+                                        <p class="text-xs text-gray-500">Redirects to real Paynow checkout for authorization.</p>
+                                        {% elif allow_simulated_payments %}
+                                        <p class="text-xs text-gray-500">Paynow credentials are not configured yet; fallback is simulated.</p>
+                                        {% else %}
+                                        <p class="text-xs text-red-600">Paynow is not configured yet. Choose another payment method.</p>
+                                        {% endif %}
+                                    {% elif choice.choice_value == 'ecocash' %}
+                                        {% if allow_simulated_payments %}
+                                    <p class="text-xs text-gray-500">Mobile-wallet simulated confirmation flow.</p>
+                                        {% else %}
+                                    <p class="text-xs text-red-600">EcoCash is not configured yet. Choose another payment method.</p>
+                                        {% endif %}
+                                    {% elif choice.choice_value == 'bank_transfer' %}
+                                    <p class="text-xs text-gray-500">Booking remains pending until transfer reconciliation.</p>
+                                    {% elif choice.choice_value == skip_payment_option %}
+                                    <p class="text-xs text-amber-700">Testing mode only. No live funds are moved.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </label>
+                        {% endfor %}
+                        {% if form.payment_option.errors %}
+                        <p class="text-sm text-red-600">{{ form.payment_option.errors|join:", " }}</p>
+                        {% endif %}
+                    </fieldset>
+
+                    <div id="skip-payment-note" class="hidden p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
+                        Testing mode enabled: this confirms the booking without real payment processing.
+                    </div>
+
+                    <section id="card-fields" class="hidden border rounded-xl p-4 bg-gray-50">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Card details</h2>
+                        {% if use_stripe_for_card %}
+                        <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                            You will be redirected to Stripe Hosted Checkout to securely enter card details.
+                        </div>
+                        {% else %}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label for="{{ form.card_number.id_for_label }}" class="form-label">Card number</label>
+                                {{ form.card_number }}
+                                {% if form.card_number.errors %}
+                                <p class="text-sm text-red-600 mt-1">{{ form.card_number.errors|join:", " }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="{{ form.card_name.id_for_label }}" class="form-label">Name on card</label>
+                                {{ form.card_name }}
+                                {% if form.card_name.errors %}
+                                <p class="text-sm text-red-600 mt-1">{{ form.card_name.errors|join:", " }}</p>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <label for="{{ form.card_expiry_month.id_for_label }}" class="form-label">Expiry month</label>
+                                {{ form.card_expiry_month }}
+                            </div>
+                            <div>
+                                <label for="{{ form.card_expiry_year.id_for_label }}" class="form-label">Expiry year</label>
+                                {{ form.card_expiry_year }}
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="{{ form.card_cvv.id_for_label }}" class="form-label">CVV</label>
+                                {{ form.card_cvv }}
+                                {% if form.card_cvv.errors %}
+                                <p class="text-sm text-red-600 mt-1">{{ form.card_cvv.errors|join:", " }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="{{ form.billing_address.id_for_label }}" class="form-label">Billing address</label>
+                                {{ form.billing_address }}
+                            </div>
+                            <div>
+                                <label for="{{ form.billing_city.id_for_label }}" class="form-label">City</label>
+                                {{ form.billing_city }}
+                            </div>
+                            <div>
+                                <label for="{{ form.billing_country.id_for_label }}" class="form-label">Country</label>
+                                {{ form.billing_country }}
+                            </div>
+                            <div>
+                                <label for="{{ form.billing_postal_code.id_for_label }}" class="form-label">Postal code</label>
+                                {{ form.billing_postal_code }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </section>
+
+                    <div>
+                        <label class="inline-flex items-start gap-2 text-sm text-gray-700">
+                            {{ form.accept_terms }}
+                            <span>{{ form.accept_terms.label }}</span>
+                        </label>
+                        {% if form.accept_terms.errors %}
+                        <p class="text-sm text-red-600 mt-1">{{ form.accept_terms.errors|join:", " }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-xs text-gray-600 bg-blue-50 p-3 rounded-lg">
+                        Use only secure in-platform payments. Never transfer funds via direct chat.
+                    </div>
+
+                    <div class="flex flex-wrap gap-3 pt-2">
+                        <button type="submit" id="checkout-submit" class="btn btn-primary">Complete payment</button>
+                        <a href="{% url 'bookings:detail' booking.pk %}" class="btn btn-ghost">Back</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <aside class="lg:col-span-1">
+            <div class="card card-body sticky top-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Booking summary</h2>
+                <div class="space-y-2 text-sm text-gray-700">
+                    <div class="flex justify-between">
+                        <span>Booking ID</span>
+                        <span>#{{ booking.pk }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Guests</span>
+                        <span>{{ booking.guests }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Payment status</span>
+                        <span>{{ booking.get_payment_status_display }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Commission</span>
+                        <span>${{ booking.commission_amount }}</span>
+                    </div>
+                    <hr class="my-2 border-gray-200">
+                    <div class="flex justify-between font-semibold text-gray-900">
+                        <span>Total due</span>
+                        <span>${{ booking.total_amount }}</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const optionsContainer = document.getElementById('payment-options');
+    const optionCards = document.querySelectorAll('[data-payment-option]');
+    const cardFields = document.getElementById('card-fields');
+    const skipPaymentNote = document.getElementById('skip-payment-note');
+    const submitButton = document.getElementById('checkout-submit');
+    const cardOption = "{{ card_payment_option }}";
+    const skipOption = "{{ skip_payment_option }}";
+
+    function selectedOption() {
+        const checked = optionsContainer.querySelector('input[name="payment_option"]:checked');
+        return checked ? checked.value : null;
+    }
+
+    function updateCheckoutUi() {
+        const value = selectedOption();
+        optionCards.forEach(function (card) {
+            const radio = card.querySelector('input[name="payment_option"]');
+            const isSelected = radio && radio.value === value;
+            card.classList.toggle('border-blue-600', isSelected);
+            card.classList.toggle('bg-blue-50', isSelected);
+        });
+
+        const isCard = value === cardOption;
+        const isSkip = value === skipOption;
+
+        cardFields.classList.toggle('hidden', !isCard);
+        skipPaymentNote.classList.toggle('hidden', !isSkip);
+
+        if (isSkip) {
+            submitButton.textContent = 'Complete booking (testing mode)';
+        } else if (value === 'bank_transfer') {
+            submitButton.textContent = 'Submit bank transfer request';
+        } else {
+            submitButton.textContent = 'Complete payment';
+        }
+    }
+
+    optionCards.forEach(function (card) {
+        card.addEventListener('click', function () {
+            const radio = card.querySelector('input[name="payment_option"]');
+            if (!radio) return;
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    });
+
+    optionsContainer.addEventListener('change', updateCheckoutUi);
+
+    const cardNumberInput = document.getElementById('{{ form.card_number.id_for_label }}');
+    if (cardNumberInput) {
+        cardNumberInput.addEventListener('input', function (event) {
+            let value = event.target.value.replace(/\D/g, '');
+            value = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+            event.target.value = value;
+        });
+    }
+
+    updateCheckoutUi();
+});
+</script>
+{% endblock %}

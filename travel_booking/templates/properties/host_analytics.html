@@ -1,0 +1,656 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Host Analytics — Marvel Safari{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  /* ── Design tokens ─────────────────────────────────── */
+  :root {
+    --navy: #0b1f2e;
+    --blue: #0071c2;
+    --blue-dark: #003580;
+    --accent: #f6b17a;
+    --green: #10b981;
+    --amber: #f59e0b;
+    --red: #ef4444;
+  }
+
+  /* ── KPI cards ─────────────────────────────────────── */
+  .kpi-card { transition: box-shadow 0.2s, transform 0.2s; }
+  .kpi-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.1); transform: translateY(-2px); }
+
+  /* ── Trend badge ────────────────────────────────────── */
+  .trend-up   { background: #d1fae5; color: #065f46; }
+  .trend-down { background: #fee2e2; color: #991b1b; }
+  .trend-flat { background: #f3f4f6; color: #374151; }
+
+  /* ── Chart containers ───────────────────────────────── */
+  .chart-wrap { position: relative; }
+
+  /* ── Table ──────────────────────────────────────────── */
+  .perf-table th { background: var(--navy); color: #fff; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  .perf-table td { font-size: 0.875rem; }
+  .perf-table tr:hover td { background: #f8fafc; }
+
+  /* ── Occupancy ring ─────────────────────────────────── */
+  .occ-ring { stroke-dasharray: 251.2; stroke-dashoffset: calc(251.2 - (251.2 * var(--pct) / 100)); transition: stroke-dashoffset 1.2s ease; }
+
+  /* ── Status dot ─────────────────────────────────────── */
+  .dot-confirmed { background: var(--green); }
+  .dot-pending   { background: var(--amber); }
+  .dot-cancelled { background: var(--red); }
+  .dot-completed { background: var(--blue); }
+
+  /* ── Sidebar nav ─────────────────────────────────────── */
+  .tab-link { border-left: 3px solid transparent; }
+  .tab-link.active { border-left-color: var(--blue); background: #eff6ff; color: var(--blue-dark); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+
+  <!-- ══ HEADER BANNER ═══════════════════════════════════ -->
+  <div class="bg-gradient-to-r from-[#0b1f2e] via-[#0f2d3f] to-[#003580] text-white">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.28em] text-[#f6b17a] font-semibold mb-1">Host Analytics</p>
+          <h1 class="text-2xl md:text-3xl font-bold">Property Performance Dashboard</h1>
+          <p class="text-white/70 text-sm mt-1">Real-time revenue, occupancy, and booking insights across your portfolio</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <a href="{% url 'properties:owner_list' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-sm font-semibold transition border border-white/20">
+            <i class="fas fa-building text-xs"></i> My Properties
+          </a>
+          <a href="{% url 'properties:create' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f6b17a] hover:bg-[#e89c60] text-[#0b1f2e] text-sm font-bold transition">
+            <i class="fas fa-plus text-xs"></i> Add Property
+          </a>
+        </div>
+      </div>
+
+      <!-- Portfolio quick-stats strip -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/10">
+        <div>
+          <p class="text-xs text-white/60 uppercase tracking-wide">Total properties</p>
+          <p class="text-2xl font-bold mt-0.5">{{ total_properties }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-white/60 uppercase tracking-wide">Live properties</p>
+          <p class="text-2xl font-bold mt-0.5 text-[#f6b17a]">{{ active_property_count }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-white/60 uppercase tracking-wide">Avg guest rating</p>
+          <p class="text-2xl font-bold mt-0.5">{% if avg_review %}{{ avg_review }}{% else %}—{% endif %}</p>
+        </div>
+        <div>
+          <p class="text-xs text-white/60 uppercase tracking-wide">Occupancy (30d)</p>
+          <p class="text-2xl font-bold mt-0.5 text-green-400">{{ occupancy_rate }}%</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MAIN LAYOUT ══════════════════════════════════════ -->
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="grid lg:grid-cols-12 gap-6">
+
+      <!-- ── Left sidebar nav ──────────────────────────── -->
+      <aside class="lg:col-span-2 hidden lg:block">
+        <nav class="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sticky top-24 space-y-1">
+          <a href="#kpis"        class="tab-link active flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+            <i class="fas fa-gauge-high w-4 text-center text-[#0071c2]"></i> Overview
+          </a>
+          <a href="#revenue"     class="tab-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+            <i class="fas fa-chart-bar w-4 text-center text-[#0071c2]"></i> Revenue
+          </a>
+          <a href="#bookings"    class="tab-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+            <i class="fas fa-calendar-check w-4 text-center text-[#0071c2]"></i> Bookings
+          </a>
+          <a href="#occupancy"   class="tab-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+            <i class="fas fa-bed w-4 text-center text-[#0071c2]"></i> Occupancy
+          </a>
+          <a href="#properties"  class="tab-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+            <i class="fas fa-hotel w-4 text-center text-[#0071c2]"></i> Properties
+          </a>
+          <a href="#recent"      class="tab-link flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+            <i class="fas fa-clock-rotate-left w-4 text-center text-[#0071c2]"></i> Recent
+          </a>
+        </nav>
+      </aside>
+
+      <!-- ── Main content ───────────────────────────────── -->
+      <div class="lg:col-span-10 space-y-6">
+
+        <!-- ════ KPI CARDS ════════════════════════════════ -->
+        <div id="kpis" class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+
+          <!-- Total revenue -->
+          <div class="kpi-card bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-[#003580] flex items-center justify-center">
+                <i class="fas fa-dollar-sign text-white text-sm"></i>
+              </div>
+              {% if revenue_change_pct is not None %}
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full {% if revenue_change_pct >= 0 %}trend-up{% else %}trend-down{% endif %}">
+                {% if revenue_change_pct >= 0 %}↑{% else %}↓{% endif %} {{ revenue_change_pct|floatformat:1 }}%
+              </span>
+              {% endif %}
+            </div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-0.5">Total Revenue (Host Payout)</p>
+            <p class="text-2xl font-bold text-gray-900">${{ total_revenue|floatformat:2 }}</p>
+            <p class="text-xs text-gray-400 mt-1">This month: ${{ this_month_revenue|floatformat:2 }}</p>
+          </div>
+
+          <!-- Total bookings -->
+          <div class="kpi-card bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                <i class="fas fa-calendar-check text-green-600 text-sm"></i>
+              </div>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full trend-flat">{{ this_month_bookings }} this month</span>
+            </div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-0.5">Total Bookings</p>
+            <p class="text-2xl font-bold text-gray-900">{{ total_bookings }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ confirmed_bookings }} confirmed · {{ pending_bookings }} pending</p>
+          </div>
+
+          <!-- Occupancy rate -->
+          <div class="kpi-card bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                <i class="fas fa-bed text-amber-600 text-sm"></i>
+              </div>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full {% if occupancy_rate >= 50 %}trend-up{% elif occupancy_rate >= 25 %}trend-flat{% else %}trend-down{% endif %}">
+                30-day avg
+              </span>
+            </div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-0.5">Occupancy Rate</p>
+            <p class="text-2xl font-bold text-gray-900">{{ occupancy_rate }}%</p>
+            <p class="text-xs text-gray-400 mt-1">Across {{ active_property_count }} active propert{{ active_property_count|pluralize:'y,ies' }}</p>
+          </div>
+
+          <!-- Avg review -->
+          <div class="kpi-card bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                <i class="fas fa-star text-purple-600 text-sm"></i>
+              </div>
+            </div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-0.5">Avg Guest Rating</p>
+            <p class="text-2xl font-bold text-gray-900">{% if avg_review %}{{ avg_review }}{% else %}—{% endif %} <span class="text-base font-normal text-gray-400">/ 5</span></p>
+            <p class="text-xs text-gray-400 mt-1">
+              {% if avg_review %}
+                {% if avg_review >= 4.5 %}Exceptional performance{% elif avg_review >= 4.0 %}Very Good{% elif avg_review >= 3.5 %}Good{% else %}Needs improvement{% endif %}
+              {% else %}No reviews yet{% endif %}
+            </p>
+          </div>
+        </div>
+
+        <!-- ════ REVENUE CHART ════════════════════════════ -->
+        <div id="revenue" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900">Monthly Revenue</h2>
+              <p class="text-sm text-gray-500">Host payout earnings over the last 12 months</p>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+              <span class="w-3 h-3 rounded-sm bg-[#003580] inline-block"></span> Host payout (after commission)
+            </div>
+          </div>
+          <div class="chart-wrap" style="height: 260px;">
+            <canvas id="revenueChart"></canvas>
+          </div>
+          <!-- Month-over-month summary -->
+          <div class="mt-4 grid grid-cols-3 gap-3 border-t border-gray-100 pt-4">
+            <div class="text-center">
+              <p class="text-xs text-gray-500">Last month</p>
+              <p class="text-base font-bold text-gray-900">${{ last_month_revenue|floatformat:0 }}</p>
+            </div>
+            <div class="text-center border-x border-gray-100">
+              <p class="text-xs text-gray-500">This month</p>
+              <p class="text-base font-bold text-[#003580]">${{ this_month_revenue|floatformat:0 }}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-xs text-gray-500">Month-over-month</p>
+              {% if revenue_change_pct is not None %}
+              <p class="text-base font-bold {% if revenue_change_pct >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                {% if revenue_change_pct >= 0 %}+{% endif %}{{ revenue_change_pct|floatformat:1 }}%
+              </p>
+              {% else %}
+              <p class="text-base font-bold text-gray-400">—</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- ════ BOOKINGS + OCCUPANCY ROW ════════════════ -->
+        <div id="bookings" class="grid md:grid-cols-12 gap-6">
+
+          <!-- Booking status donut -->
+          <div class="md:col-span-5 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-1">Booking Breakdown</h2>
+            <p class="text-sm text-gray-500 mb-5">All-time status distribution</p>
+            <div class="chart-wrap flex items-center justify-center" style="height: 200px;">
+              <canvas id="statusChart"></canvas>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-5">
+              <div class="flex items-center gap-2 text-sm">
+                <span class="w-2.5 h-2.5 rounded-full dot-confirmed inline-block shrink-0"></span>
+                <span class="text-gray-600">Confirmed</span>
+                <span class="ml-auto font-semibold text-gray-900">{{ confirmed_bookings }}</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <span class="w-2.5 h-2.5 rounded-full dot-pending inline-block shrink-0"></span>
+                <span class="text-gray-600">Pending</span>
+                <span class="ml-auto font-semibold text-gray-900">{{ pending_bookings }}</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <span class="w-2.5 h-2.5 rounded-full dot-cancelled inline-block shrink-0"></span>
+                <span class="text-gray-600">Cancelled</span>
+                <span class="ml-auto font-semibold text-gray-900">{{ cancelled_bookings }}</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <span class="w-2.5 h-2.5 rounded-full dot-completed inline-block shrink-0"></span>
+                <span class="text-gray-600">Completed</span>
+                <span class="ml-auto font-semibold text-gray-900">{{ status_counts_json.completed }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Occupancy gauge + tips -->
+          <div id="occupancy" class="md:col-span-7 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-1">Occupancy Rate</h2>
+            <p class="text-sm text-gray-500 mb-5">Rolling 30-day average across active properties</p>
+
+            <div class="flex items-center gap-8">
+              <!-- SVG ring gauge -->
+              <div class="shrink-0 relative w-36 h-36">
+                <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" stroke-width="10"/>
+                  <circle cx="50" cy="50" r="40" fill="none"
+                    stroke="{% if occupancy_rate >= 70 %}#10b981{% elif occupancy_rate >= 40 %}#f59e0b{% else %}#ef4444{% endif %}"
+                    stroke-width="10"
+                    stroke-linecap="round"
+                    stroke-dasharray="251.2"
+                    stroke-dashoffset="{{ 251.2|floatformat:0 }}"
+                    id="occ-ring"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <p class="text-2xl font-bold text-gray-900" id="occ-pct">{{ occupancy_rate }}%</p>
+                  <p class="text-xs text-gray-500">occupied</p>
+                </div>
+              </div>
+
+              <div class="flex-1 space-y-3">
+                {% if occupancy_rate >= 70 %}
+                <div class="bg-green-50 rounded-xl p-3 text-sm text-green-800 border border-green-100">
+                  <p class="font-semibold mb-0.5">🎉 Excellent occupancy!</p>
+                  <p class="text-xs">Your properties are in high demand. Consider a small price increase to maximise revenue.</p>
+                </div>
+                {% elif occupancy_rate >= 40 %}
+                <div class="bg-amber-50 rounded-xl p-3 text-sm text-amber-800 border border-amber-100">
+                  <p class="font-semibold mb-0.5">📊 Solid occupancy</p>
+                  <p class="text-xs">Room to grow. Try adding more photos, enabling instant booking, or offering free cancellation.</p>
+                </div>
+                {% else %}
+                <div class="bg-red-50 rounded-xl p-3 text-sm text-red-800 border border-red-100">
+                  <p class="font-semibold mb-0.5">💡 Low occupancy detected</p>
+                  <p class="text-xs">Review your pricing, ensure all amenities are listed, and request verified photos.</p>
+                </div>
+                {% endif %}
+
+                <div class="space-y-2">
+                  <div class="flex justify-between text-xs text-gray-500"><span>Industry avg (Africa)</span><span class="font-semibold text-gray-700">55–65%</span></div>
+                  <div class="h-1.5 bg-gray-100 rounded-full"><div class="h-1.5 bg-gray-300 rounded-full" style="width: 60%"></div></div>
+                  <div class="flex justify-between text-xs text-gray-500"><span>Your rate</span><span class="font-semibold {% if occupancy_rate >= 55 %}text-green-600{% else %}text-red-500{% endif %}">{{ occupancy_rate }}%</span></div>
+                  <div class="h-1.5 bg-gray-100 rounded-full">
+                    <div class="h-1.5 rounded-full {% if occupancy_rate >= 55 %}bg-green-500{% else %}bg-red-400{% endif %}" style="width: {{ occupancy_rate }}%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ════ PROPERTY PERFORMANCE TABLE ═════════════ -->
+        <div id="properties" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900">Property Performance</h2>
+              <p class="text-sm text-gray-500">Revenue and booking breakdown per listing</p>
+            </div>
+            <a href="{% url 'properties:owner_list' %}" class="text-sm text-[#0071c2] hover:underline font-medium">
+              Manage listings <i class="fas fa-arrow-right text-xs ml-0.5"></i>
+            </a>
+          </div>
+
+          {% if property_stats %}
+          <div class="overflow-x-auto">
+            <table class="w-full perf-table">
+              <thead>
+                <tr>
+                  <th class="px-5 py-3 text-left">Property</th>
+                  <th class="px-4 py-3 text-center">Status</th>
+                  <th class="px-4 py-3 text-center">Bookings</th>
+                  <th class="px-4 py-3 text-center">Pending</th>
+                  <th class="px-4 py-3 text-center">Rating</th>
+                  <th class="px-4 py-3 text-right">Host Payout</th>
+                  <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                {% for stat in property_stats %}
+                <tr class="transition-colors">
+                  <td class="px-5 py-4">
+                    <div class="flex items-center gap-3">
+                      {% with img=stat.property.images.all.0 %}
+                      {% if img %}{% with url=img.get_thumbnail_url %}{% if url %}
+                      <img src="{{ url }}" alt="{{ stat.property.name }}" class="w-10 h-10 rounded-lg object-cover border border-gray-100 shrink-0">
+                      {% endif %}{% endwith %}{% else %}
+                      <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0b1f2e] to-[#003580] flex items-center justify-center shrink-0">
+                        <i class="fas fa-hotel text-white text-xs"></i>
+                      </div>
+                      {% endif %}
+                      {% endwith %}
+                      <div class="min-w-0">
+                        <p class="font-semibold text-gray-900 truncate max-w-[180px]">{{ stat.property.name }}</p>
+                        <p class="text-xs text-gray-500">{{ stat.property.city }}, {{ stat.property.country.name }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 text-center">
+                    {% with s=stat.property.status %}
+                    <span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full
+                      {% if s == 'active' or s == 'approved' %}bg-green-100 text-green-700
+                      {% elif s == 'pending' %}bg-amber-100 text-amber-700
+                      {% elif s == 'draft' %}bg-gray-100 text-gray-600
+                      {% else %}bg-red-100 text-red-700{% endif %}">
+                      <span class="w-1.5 h-1.5 rounded-full
+                        {% if s == 'active' or s == 'approved' %}bg-green-500
+                        {% elif s == 'pending' %}bg-amber-500
+                        {% elif s == 'draft' %}bg-gray-400
+                        {% else %}bg-red-500{% endif %}">
+                      </span>
+                      {{ stat.property.get_status_display }}
+                    </span>
+                    {% endwith %}
+                  </td>
+                  <td class="px-4 py-4 text-center">
+                    <span class="text-sm font-semibold text-gray-900">{{ stat.confirmed }}</span>
+                    <span class="text-xs text-gray-400">/ {{ stat.total_bookings }}</span>
+                  </td>
+                  <td class="px-4 py-4 text-center">
+                    {% if stat.pending > 0 %}
+                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                      <i class="fas fa-clock text-xs"></i> {{ stat.pending }}
+                    </span>
+                    {% else %}
+                    <span class="text-xs text-gray-400">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-4 py-4 text-center">
+                    {% if stat.rating %}
+                    <div class="inline-flex items-center gap-1.5">
+                      <span class="w-8 h-8 rounded-lg bg-[#003580] text-white text-xs font-bold flex items-center justify-center">{{ stat.rating|floatformat:1 }}</span>
+                      <span class="text-xs text-gray-400">({{ stat.review_count }})</span>
+                    </div>
+                    {% else %}
+                    <span class="text-xs text-gray-400 italic">No reviews</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-4 py-4 text-right">
+                    <span class="text-sm font-bold text-gray-900">${{ stat.revenue|floatformat:2 }}</span>
+                    {% if stat.revenue > 0 %}<p class="text-xs text-gray-400">after commission</p>{% endif %}
+                  </td>
+                  <td class="px-4 py-4 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <a href="{% url 'properties:detail' stat.property.slug %}" class="text-xs text-[#0071c2] hover:underline">View</a>
+                      <span class="text-gray-200">|</span>
+                      <a href="{% url 'properties:edit' stat.property.slug %}" class="text-xs text-gray-500 hover:text-gray-800">Edit</a>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="text-center py-12">
+            <div class="text-5xl mb-3">🏨</div>
+            <p class="text-gray-500">No properties listed yet.</p>
+            <a href="{% url 'properties:create' %}" class="inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-xl bg-[#0071c2] text-white text-sm font-semibold hover:bg-[#005999] transition">
+              <i class="fas fa-plus"></i> List your first property
+            </a>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- ════ RECENT BOOKINGS ══════════════════════════ -->
+        <div id="recent" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900">Recent Bookings</h2>
+              <p class="text-sm text-gray-500">Latest guest reservations across your portfolio</p>
+            </div>
+            <a href="{% url 'bookings:list' %}" class="text-sm text-[#0071c2] hover:underline font-medium">
+              View all <i class="fas fa-arrow-right text-xs ml-0.5"></i>
+            </a>
+          </div>
+
+          {% if recent_bookings %}
+          <div class="divide-y divide-gray-100">
+            {% for booking in recent_bookings %}
+            <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-gray-50 transition">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#f6b17a] to-[#e89c60] flex items-center justify-center text-white font-bold text-sm shrink-0">
+                  {{ booking.user.first_name|default:booking.user.email|first|upper }}
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-gray-900 truncate">{{ booking.user.get_full_name|default:booking.user.email }}</p>
+                  <p class="text-xs text-gray-500 truncate">{{ booking.property.name }}</p>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-4 text-xs text-gray-500 sm:shrink-0">
+                <span class="flex items-center gap-1">
+                  <i class="fas fa-calendar text-gray-400"></i>
+                  {{ booking.check_in_date|date:"M j" }} → {{ booking.check_out_date|date:"M j, Y" }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <i class="fas fa-users text-gray-400"></i>
+                  {{ booking.guests }} guest{{ booking.guests|pluralize }}
+                </span>
+                <span class="font-semibold text-gray-900">${{ booking.total_amount|floatformat:2 }}</span>
+              </div>
+
+              <div class="flex items-center gap-3 shrink-0">
+                <span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full
+                  {% if booking.status == 'confirmed' %}bg-green-100 text-green-700
+                  {% elif booking.status == 'pending' %}bg-amber-100 text-amber-700
+                  {% elif booking.status == 'completed' %}bg-blue-100 text-blue-700
+                  {% else %}bg-red-100 text-red-700{% endif %}">
+                  {{ booking.get_status_display }}
+                </span>
+                <a href="{% url 'bookings:detail' booking.id %}" class="text-xs text-[#0071c2] hover:underline">Details</a>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-12">
+            <div class="text-5xl mb-3">📅</div>
+            <p class="text-gray-500 text-sm">No bookings yet. Bookings will appear here once guests reserve your properties.</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- ════ TIPS PANEL ═══════════════════════════════ -->
+        <div class="bg-gradient-to-r from-[#0b1f2e] to-[#003580] rounded-2xl p-6 text-white">
+          <h2 class="text-lg font-bold mb-1">Grow your revenue</h2>
+          <p class="text-white/70 text-sm mb-5">Quick wins to improve your listings and bookings</p>
+          <div class="grid sm:grid-cols-3 gap-4">
+            <div class="bg-white/10 rounded-xl p-4 border border-white/10">
+              <i class="fas fa-images text-[#f6b17a] mb-2 text-lg"></i>
+              <p class="font-semibold text-sm mb-1">Add more photos</p>
+              <p class="text-xs text-white/60">Properties with 10+ photos get 2× more bookings. Aim for bedroom, bathroom, view, and common areas.</p>
+            </div>
+            <div class="bg-white/10 rounded-xl p-4 border border-white/10">
+              <i class="fas fa-bolt text-[#f6b17a] mb-2 text-lg"></i>
+              <p class="font-semibold text-sm mb-1">Enable instant booking</p>
+              <p class="text-xs text-white/60">Instant booking reduces friction and surfaces your listing higher in search results.</p>
+            </div>
+            <div class="bg-white/10 rounded-xl p-4 border border-white/10">
+              <i class="fas fa-star text-[#f6b17a] mb-2 text-lg"></i>
+              <p class="font-semibold text-sm mb-1">Reply to reviews</p>
+              <p class="text-xs text-white/60">Hosts who respond to reviews see 15% higher re-booking rates. Show guests you care.</p>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /main content -->
+    </div><!-- /grid -->
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Data from Django context ─────────────────────────────
+const MONTHLY_LABELS  = {{ monthly_labels_json|safe }};
+const MONTHLY_REVENUE = {{ monthly_revenue_json|safe }};
+const STATUS_COUNTS   = {{ status_counts_json|safe }};
+
+// ── Shared chart defaults ────────────────────────────────
+Chart.defaults.font.family = "'Space Grotesk', -apple-system, sans-serif";
+Chart.defaults.color = '#6b7280';
+
+// ── Revenue bar chart ────────────────────────────────────
+const revCtx = document.getElementById('revenueChart').getContext('2d');
+
+const gradient = revCtx.createLinearGradient(0, 0, 0, 260);
+gradient.addColorStop(0, 'rgba(0, 53, 128, 0.85)');
+gradient.addColorStop(1, 'rgba(0, 113, 194, 0.3)');
+
+new Chart(revCtx, {
+  type: 'bar',
+  data: {
+    labels: MONTHLY_LABELS,
+    datasets: [{
+      label: 'Host Payout ($)',
+      data: MONTHLY_REVENUE,
+      backgroundColor: gradient,
+      borderColor: '#003580',
+      borderWidth: 0,
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0b1f2e',
+        titleColor: '#f6b17a',
+        bodyColor: '#fff',
+        padding: 10,
+        callbacks: {
+          label: ctx => `  $${ctx.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, border: { display: false } },
+      y: {
+        beginAtZero: true,
+        border: { display: false },
+        grid: { color: '#f3f4f6' },
+        ticks: {
+          callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(1) + 'k' : v)
+        }
+      }
+    }
+  }
+});
+
+// ── Booking status donut ─────────────────────────────────
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+
+const total = STATUS_COUNTS.confirmed + STATUS_COUNTS.pending + STATUS_COUNTS.cancelled + STATUS_COUNTS.completed;
+const isEmpty = total === 0;
+
+new Chart(statusCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Confirmed', 'Pending', 'Cancelled', 'Completed'],
+    datasets: [{
+      data: isEmpty
+        ? [1, 0, 0, 0]
+        : [STATUS_COUNTS.confirmed, STATUS_COUNTS.pending, STATUS_COUNTS.cancelled, STATUS_COUNTS.completed],
+      backgroundColor: isEmpty
+        ? ['#e5e7eb']
+        : ['#10b981', '#f59e0b', '#ef4444', '#0071c2'],
+      borderWidth: 3,
+      borderColor: '#fff',
+      hoverBorderColor: '#fff',
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '70%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        enabled: !isEmpty,
+        backgroundColor: '#0b1f2e',
+        bodyColor: '#fff',
+        padding: 10,
+        callbacks: {
+          label: ctx => `  ${ctx.label}: ${ctx.parsed} bookings`
+        }
+      }
+    }
+  }
+});
+
+// ── Occupancy ring animation ──────────────────────────────
+(function() {
+  const ring = document.getElementById('occ-ring');
+  if (!ring) return;
+  const pct = {{ occupancy_rate }};
+  const circumference = 251.2;
+  const offset = circumference - (circumference * pct / 100);
+  // Animate from full offset to final
+  ring.style.strokeDashoffset = circumference;
+  setTimeout(() => {
+    ring.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)';
+    ring.style.strokeDashoffset = offset;
+  }, 300);
+})();
+
+// ── Sidebar active link tracking ─────────────────────────
+const sections = ['kpis', 'revenue', 'bookings', 'occupancy', 'properties', 'recent'];
+const navLinks = document.querySelectorAll('.tab-link');
+
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navLinks.forEach(l => {
+        l.classList.toggle('active', l.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+
+sections.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) observer.observe(el);
+});
+</script>
+{% endblock %}

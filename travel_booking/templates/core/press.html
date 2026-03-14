@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Press Centre - Marvel Safari{% endblock %}
+{% block meta_description %}Marvel Safari press releases, media kit, and contact information for journalists and media professionals.{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden py-12 md:py-16 px-4 sm:px-6 lg:px-8">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-br from-sky-50 via-white to-amber-50"></div>
+  <div class="max-w-6xl mx-auto space-y-8">
+    <header class="card card-body lg:p-10">
+      <p class="badge badge-info mb-4">Media</p>
+      <h1 class="font-display text-4xl md:text-5xl font-bold text-gray-900">Press Centre</h1>
+      <p class="text-gray-600 mt-4 max-w-3xl">Company information, media resources, and press contact details for Marvel Safari.</p>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-3">
+      <article class="card card-body lg:col-span-2 space-y-6">
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Company Snapshot</h2>
+          <p class="text-gray-700">Marvel Safari is a travel platform focused on African stays, tours, and transport experiences with strong local partnerships.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Press Releases</h2>
+          <p class="text-gray-700">Official announcements are published through this section when available.</p>
+        </section>
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Media Kit</h2>
+          <p class="text-gray-700">For logos, brand guidelines, and background materials, contact the media desk.</p>
+        </section>
+      </article>
+
+      <aside class="space-y-6">
+        <div class="card card-body">
+          <h3 class="text-lg font-semibold text-gray-900 mb-3">Key Facts</h3>
+          <ul class="text-sm text-gray-700 space-y-2">
+            <li>Founded in 2024</li>
+            <li>Headquartered in Nairobi, Kenya</li>
+            <li>Pan-African supplier network</li>
+            <li>Focus on responsible tourism</li>
+          </ul>
+        </div>
+        <div class="card card-body bg-[#003580] text-white border-0">
+          <h3 class="text-lg font-semibold mb-2">Media Contact</h3>
+          <p class="text-white/80 text-sm">For interview requests and editorial inquiries.</p>
+          <a href="mailto:press@marvelsafari.com" class="btn btn-accent mt-4">press@marvelsafari.com</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

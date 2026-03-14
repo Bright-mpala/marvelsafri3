@@ -1,0 +1,786 @@
+{% extends 'base.html' %}
+{% load property_filters %}
+
+{% block title %}Search Properties - Marvel Safari{% endblock %}
+
+{% block extra_head %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  #map { height: 100%; min-height: 560px; border-radius: 1rem; }
+  .leaflet-popup-content-wrapper { border-radius: 0.75rem; box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
+  .leaflet-popup-content { margin: 12px 14px; }
+  .map-pin-price {
+    background: #0071c2; color: white; font-weight: 700; font-size: 11px;
+    padding: 4px 8px; border-radius: 20px; white-space: nowrap;
+    border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .map-pin-price:hover, .map-pin-price.active { background: #003580; transform: scale(1.1); }
+  /* View toggle */
+  .view-btn { transition: all 0.2s; }
+  .view-btn.active { background: #003580; color: white; border-color: #003580; }
+  /* Rating stars */
+  .star-btn { cursor: pointer; }
+  .star-btn input:checked ~ label i,
+  .star-btn:hover label i { color: #f59e0b; }
+  /* Filter section collapse */
+  .filter-section-body { transition: max-height 0.25s ease, opacity 0.25s ease; }
+  /* Urgency badge */
+  .urgency-badge { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.75} }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="bg-gradient-to-b from-slate-50 via-white to-slate-50 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+
+    <!-- ── Top Search Bar ── -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
+        <div>
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Verified stays</p>
+          <h2 class="text-2xl md:text-3xl font-semibold text-slate-900">Search and compare properties</h2>
+        </div>
+        <div class="flex items-center gap-2 text-sm text-slate-500">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium"><i class="fas fa-shield-alt"></i> Secure booking</span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium"><i class="fas fa-star"></i> Real reviews</span>
+        </div>
+      </div>
+
+      <form method="get" id="main-search-form" class="grid md:grid-cols-12 gap-3">
+        <div class="md:col-span-4">
+          <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-search text-slate-400 mr-1"></i>Destination or Property</label>
+          <input type="text" name="q" value="{{ request.GET.q|default:'' }}"
+                 placeholder="Where are you going?"
+                 class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0071c2] focus:border-transparent text-sm">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-city text-slate-400 mr-1"></i>City</label>
+          <input type="text" name="city" value="{{ request.GET.city|default:'' }}"
+                 placeholder="City name"
+                 class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0071c2] focus:border-transparent text-sm">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-calendar text-slate-400 mr-1"></i>Check-in</label>
+          <input type="date" name="check_in" value="{{ check_in|default:request.GET.check_in|default:'' }}"
+                 class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0071c2] focus:border-transparent text-sm" id="checkin-date">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fas fa-calendar-days text-slate-400 mr-1"></i>Check-out</label>
+          <input type="date" name="check_out" value="{{ check_out|default:request.GET.check_out|default:'' }}"
+                 class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0071c2] focus:border-transparent text-sm" id="checkout-date">
+        </div>
+        <div class="md:col-span-2 flex items-end">
+          <button type="submit" class="w-full bg-[#0071c2] hover:bg-[#005999] text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+            <i class="fas fa-search"></i> Search
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Active Filter Chips ── -->
+    {% if active_filters %}
+    <div class="bg-white rounded-2xl border border-slate-100 p-4 mb-6">
+      <p class="text-xs uppercase tracking-wide text-slate-500 mb-3">Active filters</p>
+      <div class="flex flex-wrap gap-2">
+        {% for filter in active_filters %}
+        <span class="px-3 py-1 rounded-full bg-blue-50 text-[#005999] text-sm font-medium flex items-center gap-2">
+          {{ filter.label }}: {{ filter.value }}
+          {% with remove_query=filter.remove_query %}
+          <a href="{% if remove_query %}?{{ remove_query }}{% else %}{% url 'properties:search' %}{% endif %}" class="text-blue-700 hover:text-blue-900">
+            <i class="fas fa-times"></i>
+          </a>
+          {% endwith %}
+        </span>
+        {% endfor %}
+        <a href="{% url 'properties:search' %}" class="px-3 py-1 rounded-full border border-slate-200 text-sm text-slate-600 hover:border-red-300 hover:text-red-600 transition">
+          <i class="fas fa-times mr-1"></i>Clear all
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ── Results Count + Sort + View Toggle ── -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div>
+        <h3 class="text-lg font-semibold text-slate-900">
+          <span class="text-[#0071c2]">{{ page_obj.paginator.count }}</span>
+          propert{{ page_obj.paginator.count|pluralize:'y,ies' }} found
+          {% if request.GET.q %}<span class="font-normal text-slate-500"> for "{{ request.GET.q }}"</span>{% endif %}
+        </h3>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Sort -->
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-semibold text-slate-500 whitespace-nowrap">Sort:</label>
+          <form method="get" id="sort-form">
+            {% for key, value in request.GET.items %}
+              {% if key != 'sort' and key != 'page' %}
+              <input type="hidden" name="{{ key }}" value="{{ value }}">
+              {% endif %}
+            {% endfor %}
+            <select name="sort" onchange="document.getElementById('sort-form').submit()"
+                    class="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-[#0071c2] bg-white">
+              <option value="-created_at" {% if request.GET.sort == '-created_at' or not request.GET.sort %}selected{% endif %}>Our top picks</option>
+              <option value="minimum_price" {% if request.GET.sort == 'minimum_price' %}selected{% endif %}>Price (lowest)</option>
+              <option value="-minimum_price" {% if request.GET.sort == '-minimum_price' %}selected{% endif %}>Price (highest)</option>
+              <option value="-average_rating" {% if request.GET.sort == '-average_rating' %}selected{% endif %}>Top rated</option>
+              <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A–Z)</option>
+            </select>
+          </form>
+        </div>
+        <!-- View Toggle -->
+        <div class="flex items-center border border-slate-200 rounded-xl overflow-hidden">
+          <button id="btn-list" class="view-btn active px-3 py-1.5 text-sm font-medium border-r border-slate-200 flex items-center gap-1.5" onclick="setView('list')">
+            <i class="fas fa-list"></i> <span class="hidden sm:inline">List</span>
+          </button>
+          <button id="btn-map" class="view-btn px-3 py-1.5 text-sm font-medium flex items-center gap-1.5" onclick="setView('map')">
+            <i class="fas fa-map"></i> <span class="hidden sm:inline">Map</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Main Layout ── -->
+    <div class="grid lg:grid-cols-12 gap-6">
+
+      <!-- ── Filters Sidebar ── -->
+      <aside class="lg:col-span-3">
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 sticky top-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold text-slate-900">Filter your stay</h3>
+            <a href="{% url 'properties:search' %}{% if request.GET.q %}?q={{ request.GET.q }}{% endif %}" class="text-xs text-[#0071c2] hover:underline">Reset</a>
+          </div>
+
+          <form method="get" id="filter-form" class="space-y-0">
+            <!-- Preserve search params -->
+            {% if request.GET.q %}<input type="hidden" name="q" value="{{ request.GET.q }}">{% endif %}
+            {% if request.GET.city %}<input type="hidden" name="city" value="{{ request.GET.city }}">{% endif %}
+            {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+            {% if request.GET.check_in %}<input type="hidden" name="check_in" value="{{ request.GET.check_in }}">{% endif %}
+            {% if request.GET.check_out %}<input type="hidden" name="check_out" value="{{ request.GET.check_out }}">{% endif %}
+
+            <!-- ① Price Range -->
+            <div class="py-4 border-b border-slate-100">
+              <button type="button" class="flex items-center justify-between w-full text-left group" onclick="toggleSection('price')">
+                <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Budget (USD/night)</p>
+                <i id="price-icon" class="fas fa-chevron-up text-xs text-slate-400 transition-transform"></i>
+              </button>
+              <div id="price-body" class="mt-3 space-y-2">
+                <!-- Price slider visual hint -->
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">$</span>
+                    <input type="number" name="min_price" value="{{ request.GET.min_price|default:'' }}"
+                           placeholder="0" min="0"
+                           class="w-full pl-6 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-[#0071c2]"
+                           id="min-price-input">
+                  </div>
+                  <span class="text-slate-400 text-xs">–</span>
+                  <div class="relative flex-1">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">$</span>
+                    <input type="number" name="max_price" value="{{ request.GET.max_price|default:'' }}"
+                           placeholder="Any" min="0"
+                           class="w-full pl-6 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-[#0071c2]"
+                           id="max-price-input">
+                  </div>
+                </div>
+                <!-- Quick price presets -->
+                <div class="flex flex-wrap gap-1">
+                  <button type="button" class="price-preset text-xs px-2 py-1 rounded-full border border-slate-200 hover:border-[#0071c2] hover:text-[#0071c2] transition" data-min="" data-max="100">Under $100</button>
+                  <button type="button" class="price-preset text-xs px-2 py-1 rounded-full border border-slate-200 hover:border-[#0071c2] hover:text-[#0071c2] transition" data-min="100" data-max="300">$100–$300</button>
+                  <button type="button" class="price-preset text-xs px-2 py-1 rounded-full border border-slate-200 hover:border-[#0071c2] hover:text-[#0071c2] transition" data-min="300" data-max="">$300+</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ② Property Type -->
+            <div class="py-4 border-b border-slate-100">
+              <button type="button" class="flex items-center justify-between w-full text-left" onclick="toggleSection('type')">
+                <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Property type</p>
+                <i id="type-icon" class="fas fa-chevron-up text-xs text-slate-400 transition-transform"></i>
+              </button>
+              <div id="type-body" class="mt-3 space-y-1.5">
+                {% for ptype in property_types %}
+                <label class="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer hover:text-[#0071c2] py-0.5">
+                  <input type="radio" name="type" value="{{ ptype.slug }}"
+                         {% if request.GET.type == ptype.slug %}checked{% endif %}
+                         class="text-[#0071c2] focus:ring-[#0071c2] border-slate-300"
+                         onchange="this.form.submit()">
+                  <span>{{ ptype.name }}</span>
+                </label>
+                {% endfor %}
+                {% if request.GET.type %}
+                <label class="flex items-center gap-2.5 text-sm text-slate-400 cursor-pointer hover:text-slate-600 py-0.5">
+                  <input type="radio" name="type" value="" checked class="text-slate-400" onchange="this.form.submit()">
+                  <span>All types</span>
+                </label>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- ③ Star Rating -->
+            <div class="py-4 border-b border-slate-100">
+              <button type="button" class="flex items-center justify-between w-full text-left" onclick="toggleSection('stars')">
+                <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Official star rating</p>
+                <i id="stars-icon" class="fas fa-chevron-up text-xs text-slate-400 transition-transform"></i>
+              </button>
+              <div id="stars-body" class="mt-3 space-y-1.5">
+                {% for s in "12345" %}
+                <label class="flex items-center gap-2.5 cursor-pointer group">
+                  <input type="radio" name="stars" value="{{ s }}"
+                         {% if request.GET.stars == s %}checked{% endif %}
+                         class="text-[#0071c2] focus:ring-[#0071c2] border-slate-300"
+                         onchange="this.form.submit()">
+                  <span class="flex items-center gap-0.5">
+                    {% for i in "12345" %}
+                      {% if forloop.counter <= s|add:0 %}
+                      <i class="fas fa-star text-amber-400 text-xs"></i>
+                      {% else %}
+                      <i class="fas fa-star text-slate-200 text-xs"></i>
+                      {% endif %}
+                    {% endfor %}
+                  </span>
+                  {% if s == "5" %}<span class="text-xs text-slate-500 ml-1">only</span>{% else %}<span class="text-xs text-slate-500 ml-1">& up</span>{% endif %}
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- ④ Guest Review Score -->
+            <div class="py-4 border-b border-slate-100">
+              <button type="button" class="flex items-center justify-between w-full text-left" onclick="toggleSection('rating')">
+                <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Guest review score</p>
+                <i id="rating-icon" class="fas fa-chevron-up text-xs text-slate-400 transition-transform"></i>
+              </button>
+              <div id="rating-body" class="mt-3 space-y-1.5">
+                <label class="flex items-center gap-2.5 text-sm cursor-pointer hover:text-[#0071c2]">
+                  <input type="radio" name="rating" value="4.5" {% if request.GET.rating == '4.5' %}checked{% endif %}
+                         class="text-[#0071c2] border-slate-300" onchange="this.form.submit()">
+                  <span class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 bg-[#003580] text-white text-xs font-bold rounded">4.5+</span>
+                    <span class="text-slate-700">Exceptional</span>
+                  </span>
+                </label>
+                <label class="flex items-center gap-2.5 text-sm cursor-pointer hover:text-[#0071c2]">
+                  <input type="radio" name="rating" value="4.0" {% if request.GET.rating == '4.0' %}checked{% endif %}
+                         class="text-[#0071c2] border-slate-300" onchange="this.form.submit()">
+                  <span class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 bg-[#003580] text-white text-xs font-bold rounded">4.0+</span>
+                    <span class="text-slate-700">Very Good</span>
+                  </span>
+                </label>
+                <label class="flex items-center gap-2.5 text-sm cursor-pointer hover:text-[#0071c2]">
+                  <input type="radio" name="rating" value="3.5" {% if request.GET.rating == '3.5' %}checked{% endif %}
+                         class="text-[#0071c2] border-slate-300" onchange="this.form.submit()">
+                  <span class="flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 bg-[#003580] text-white text-xs font-bold rounded">3.5+</span>
+                    <span class="text-slate-700">Good</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- ⑤ Popular Filters (toggles) -->
+            <div class="py-4 border-b border-slate-100">
+              <button type="button" class="flex items-center justify-between w-full text-left" onclick="toggleSection('popular')">
+                <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Popular filters</p>
+                <i id="popular-icon" class="fas fa-chevron-up text-xs text-slate-400 transition-transform"></i>
+              </button>
+              <div id="popular-body" class="mt-3 space-y-2">
+                <label class="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer hover:text-[#0071c2] py-0.5">
+                  <input type="checkbox" name="free_cancellation" value="1"
+                         {% if free_cancellation_active %}checked{% endif %}
+                         class="rounded border-slate-300 text-[#0071c2] focus:ring-[#0071c2]"
+                         onchange="this.form.submit()">
+                  <span><i class="fas fa-undo text-green-500 mr-1"></i>Free cancellation</span>
+                </label>
+                <label class="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer hover:text-[#0071c2] py-0.5">
+                  <input type="checkbox" name="instant_booking" value="1"
+                         {% if instant_booking_active %}checked{% endif %}
+                         class="rounded border-slate-300 text-[#0071c2] focus:ring-[#0071c2]"
+                         onchange="this.form.submit()">
+                  <span><i class="fas fa-bolt text-amber-500 mr-1"></i>Instant booking</span>
+                </label>
+                <label class="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer hover:text-[#0071c2] py-0.5">
+                  <input type="checkbox" name="verified_only" value="1"
+                         {% if request.GET.verified_only or verified_only_active %}checked{% endif %}
+                         class="rounded border-slate-300 text-[#0071c2] focus:ring-[#0071c2]"
+                         onchange="this.form.submit()">
+                  <span><i class="fas fa-shield-alt text-blue-500 mr-1"></i>Verified only</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- ⑥ Amenities -->
+            {% if amenities %}
+            <div class="py-4">
+              <button type="button" class="flex items-center justify-between w-full text-left" onclick="toggleSection('amenities')">
+                <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Facilities</p>
+                <i id="amenities-icon" class="fas fa-chevron-up text-xs text-slate-400 transition-transform"></i>
+              </button>
+              <div id="amenities-body" class="mt-3 space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                {% for amenity in amenities %}
+                <label class="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer hover:text-[#0071c2] py-0.5">
+                  <input type="checkbox" name="amenities" value="{{ amenity.id }}"
+                         {% if amenity.id|stringformat:"s" in selected_amenities %}checked{% endif %}
+                         class="rounded border-slate-300 text-[#0071c2] focus:ring-[#0071c2]"
+                         onchange="this.form.submit()">
+                  <span>{{ amenity.name }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- Mobile Apply -->
+            <button type="submit" class="w-full lg:hidden mt-4 px-4 py-2.5 rounded-xl bg-[#003580] text-white font-semibold text-sm hover:bg-[#002a6e] transition">
+              Apply filters
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <!-- ── Results Column ── -->
+      <div class="lg:col-span-9">
+
+        <!-- LIST VIEW -->
+        <div id="view-list">
+          {% if page_obj %}
+          <div class="space-y-4">
+            {% for property in page_obj %}
+            <article class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition group"
+                     data-property-id="{{ property.id }}"
+                     data-lat="{{ property.latitude|default:'' }}"
+                     data-lng="{{ property.longitude|default:'' }}">
+              <div class="grid md:grid-cols-12 gap-0">
+                <!-- Image -->
+                <div class="md:col-span-4 relative overflow-hidden">
+                  {% with primary_image=property.get_primary_image %}
+                    {% if primary_image %}
+                      {% with image_url=primary_image.get_thumbnail_url %}
+                        {% if image_url %}
+                        <img src="{{ image_url }}"
+                             alt="{{ primary_image.alt_text|default:property.name }}"
+                             class="h-52 md:h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                             loading="lazy">
+                        {% else %}
+                        <div class="h-52 md:h-full bg-gradient-to-br from-[#0b1f2e] to-[#123754] flex items-center justify-center">
+                          <i class="fas fa-hotel text-5xl text-white/30"></i>
+                        </div>
+                        {% endif %}
+                      {% endwith %}
+                    {% else %}
+                    <div class="h-52 md:h-full bg-gradient-to-br from-[#0b1f2e] to-[#123754] flex items-center justify-center">
+                      <i class="fas fa-hotel text-5xl text-white/30"></i>
+                    </div>
+                    {% endif %}
+                  {% endwith %}
+
+                  <!-- Overlay badges -->
+                  <div class="absolute top-3 left-3 flex flex-col gap-1.5">
+                    {% if property.is_verified %}
+                    <span class="inline-flex items-center gap-1 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow">
+                      <i class="fas fa-check-circle"></i> Verified
+                    </span>
+                    {% endif %}
+                    {% if property.is_featured %}
+                    <span class="inline-flex items-center gap-1 bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow">
+                      <i class="fas fa-star"></i> Featured
+                    </span>
+                    {% endif %}
+                  </div>
+
+                  <!-- Urgency signal -->
+                  {% if property.room_types.exists %}
+                    {% with min_rooms=property.room_types.all.0.quantity_available %}
+                    {% if min_rooms and min_rooms <= 3 %}
+                    <div class="absolute bottom-3 left-3">
+                      <span class="urgency-badge inline-flex items-center gap-1 bg-red-600 text-white text-xs px-2 py-1 rounded-full font-semibold shadow">
+                        <i class="fas fa-fire"></i>
+                        {% if min_rooms == 1 %}Only 1 room left!{% else %}Only {{ min_rooms }} left{% endif %}
+                      </span>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                  {% endif %}
+                </div>
+
+                <!-- Content -->
+                <div class="md:col-span-8 p-5 flex flex-col justify-between">
+                  <div>
+                    <div class="flex items-start justify-between gap-4">
+                      <div>
+                        <!-- Star rating -->
+                        {% if property.star_rating %}
+                        <div class="flex items-center gap-0.5 mb-1">
+                          {% for i in "12345" %}
+                            {% if forloop.counter <= property.star_rating %}
+                            <i class="fas fa-star text-amber-400 text-xs"></i>
+                            {% else %}
+                            <i class="fas fa-star text-slate-200 text-xs"></i>
+                            {% endif %}
+                          {% endfor %}
+                          <span class="text-xs text-slate-500 ml-1">{{ property.property_type.name }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-slate-500 mb-1">{{ property.property_type.name }}</p>
+                        {% endif %}
+
+                        <h3 class="text-lg font-bold text-slate-900 leading-tight">
+                          <a href="{% url 'properties:detail' property.slug %}" class="hover:text-[#0071c2] transition-colors">
+                            {{ property.name }}
+                          </a>
+                        </h3>
+                        <p class="text-sm text-slate-500 flex items-center gap-1 mt-0.5">
+                          <i class="fas fa-map-marker-alt text-xs text-slate-400"></i>
+                          {{ property.city }}, {{ property.country.name }}
+                        </p>
+                      </div>
+
+                      <!-- Guest score -->
+                      <div class="text-right shrink-0">
+                        {% if property.average_rating %}
+                          {% with r=property.average_rating %}
+                          <div class="flex items-center gap-2 justify-end">
+                            <div class="text-right">
+                              <p class="text-xs text-slate-500 leading-none mb-0.5">
+                                {% if r >= 4.5 %}Exceptional{% elif r >= 4.0 %}Very Good{% elif r >= 3.5 %}Good{% else %}Fair{% endif %}
+                              </p>
+                              <p class="text-xs text-slate-400">{{ property.review_count }} reviews</p>
+                            </div>
+                            <span class="w-10 h-10 rounded-tl-xl rounded-tr-xl rounded-br-xl bg-[#003580] text-white text-sm font-bold flex items-center justify-center">
+                              {{ r|floatformat:1 }}
+                            </span>
+                          </div>
+                          {% endwith %}
+                        {% else %}
+                        <span class="text-xs text-slate-400 italic">New</span>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <!-- Amenity chips -->
+                    <div class="mt-3 flex flex-wrap items-center gap-1.5">
+                      {% for amenity in property.amenities.all|slice:":4" %}
+                      <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">{{ amenity.name }}</span>
+                      {% endfor %}
+                      {% if property.amenities.count > 4 %}
+                      <span class="text-xs text-slate-400">+{{ property.amenities.count|add:"-4" }} more</span>
+                      {% endif %}
+                    </div>
+
+                    <!-- Description snippet -->
+                    <p class="text-sm text-slate-500 mt-2.5 line-clamp-2">{{ property.description|truncatechars:120 }}</p>
+
+                    <!-- Trust badges -->
+                    <div class="flex flex-wrap gap-1.5 mt-3">
+                      {% if property.free_cancellation %}
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-50 text-green-700 text-xs font-medium">
+                        <i class="fas fa-undo text-xs"></i> Free cancellation
+                      </span>
+                      {% endif %}
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-medium">
+                        <i class="fas fa-bolt text-xs"></i> Instant confirmation
+                      </span>
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-xs font-medium">
+                        <i class="fas fa-shield-alt text-xs"></i> Secure booking
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Price + CTA -->
+                  <div class="mt-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 pt-4 border-t border-slate-100">
+                    <div>
+                      <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold">From</p>
+                      <div class="flex items-baseline gap-1">
+                        <span class="text-2xl font-bold text-slate-900">${{ property.minimum_price|default:'—' }}</span>
+                        <span class="text-sm text-slate-500">/ night</span>
+                      </div>
+                      <p class="text-xs text-slate-400 mt-0.5">Taxes & fees may apply</p>
+                    </div>
+                    <a href="{% url 'properties:detail' property.slug %}"
+                       class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#0071c2] hover:bg-[#005999] text-white text-sm font-semibold transition-colors shadow-sm">
+                      See availability <i class="fas fa-arrow-right"></i>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+
+          <!-- Pagination -->
+          {% if page_obj.paginator.num_pages > 1 %}
+          <div class="mt-8 bg-white rounded-2xl border border-slate-100 p-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-slate-500 mb-4">
+              <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+              <span>{{ page_obj.paginator.count }} total stays</span>
+            </div>
+            <div class="flex flex-wrap justify-center gap-2">
+              {% if page_obj.has_previous %}
+              <a href="?{% url_replace request 'page' 1 %}" class="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-[#0071c2] hover:text-[#0071c2] text-sm transition">
+                <i class="fas fa-angle-double-left"></i>
+              </a>
+              <a href="?{% url_replace request 'page' page_obj.previous_page_number %}" class="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-[#0071c2] hover:text-[#0071c2] text-sm transition">
+                <i class="fas fa-angle-left"></i>
+              </a>
+              {% endif %}
+              {% for num in page_obj.paginator.page_range %}
+                {% if num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+                  {% if num == page_obj.number %}
+                  <span class="px-4 py-2 rounded-lg bg-[#003580] text-white text-sm font-semibold">{{ num }}</span>
+                  {% else %}
+                  <a href="?{% url_replace request 'page' num %}" class="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-[#0071c2] hover:text-[#0071c2] text-sm transition">{{ num }}</a>
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {% if page_obj.has_next %}
+              <a href="?{% url_replace request 'page' page_obj.next_page_number %}" class="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-[#0071c2] hover:text-[#0071c2] text-sm transition">
+                <i class="fas fa-angle-right"></i>
+              </a>
+              <a href="?{% url_replace request 'page' page_obj.paginator.num_pages %}" class="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-[#0071c2] hover:text-[#0071c2] text-sm transition">
+                <i class="fas fa-angle-double-right"></i>
+              </a>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% else %}
+          <!-- No Results -->
+          <div class="text-center py-16 bg-white rounded-2xl border border-slate-100">
+            <div class="text-7xl mb-6">🔍</div>
+            <h3 class="text-xl font-semibold text-slate-900 mb-2">No properties found</h3>
+            <p class="text-slate-500 mb-6 max-w-md mx-auto">Try adjusting your filters or searching a different destination.</p>
+            <div class="flex gap-3 justify-center">
+              <a href="{% url 'properties:list' %}" class="btn btn-primary"><i class="fas fa-building mr-2"></i>Browse all</a>
+              <a href="{% url 'properties:search' %}" class="btn btn-secondary"><i class="fas fa-redo mr-2"></i>Clear filters</a>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- MAP VIEW -->
+        <div id="view-map" class="hidden">
+          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden" style="height: 600px; position: relative;">
+            <div id="map" style="height: 100%; width: 100%;"></div>
+            <!-- Map overlay: mini property card on pin click -->
+            <div id="map-card" class="hidden absolute bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 bg-white rounded-xl shadow-2xl p-4 z-[1000] border border-slate-100">
+              <button onclick="document.getElementById('map-card').classList.add('hidden')" class="absolute top-2 right-2 text-slate-400 hover:text-slate-600">
+                <i class="fas fa-times"></i>
+              </button>
+              <div id="map-card-content"></div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2 text-center">
+            <i class="fas fa-info-circle mr-1"></i>
+            Showing properties with geographic coordinates. Some may not appear if location data is unavailable.
+          </p>
+        </div>
+
+      </div><!-- /results column -->
+    </div><!-- /grid -->
+  </div>
+</section>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLEo=" crossorigin=""></script>
+
+<!-- Property data for map -->
+<script>
+const PROPERTIES = [
+  {% for property in page_obj %}
+  {% if property.latitude and property.longitude %}
+  {
+    id: {{ property.id }},
+    name: "{{ property.name|escapejs }}",
+    city: "{{ property.city|escapejs }}",
+    country: "{{ property.country.name|escapejs }}",
+    price: "{{ property.minimum_price|default:'—' }}",
+    rating: "{{ property.average_rating|default:''|floatformat:1 }}",
+    ratingLabel: "{% if property.average_rating %}{% with r=property.average_rating %}{% if r >= 4.5 %}Exceptional{% elif r >= 4.0 %}Very Good{% elif r >= 3.5 %}Good{% else %}Fair{% endif %}{% endwith %}{% endif %}",
+    url: "{% url 'properties:detail' property.slug %}",
+    lat: {{ property.latitude }},
+    lng: {{ property.longitude }},
+    type: "{{ property.property_type.name|escapejs }}",
+    verified: {{ property.is_verified|yesno:"true,false" }},
+    freeCancellation: {{ property.free_cancellation|yesno:"true,false" }},
+  },
+  {% endif %}
+  {% endfor %}
+];
+</script>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── View toggle ──────────────────────────────────────────
+let mapInitialized = false;
+
+function setView(view) {
+  const listEl = document.getElementById('view-list');
+  const mapEl = document.getElementById('view-map');
+  const btnList = document.getElementById('btn-list');
+  const btnMap = document.getElementById('btn-map');
+
+  if (view === 'map') {
+    listEl.classList.add('hidden');
+    mapEl.classList.remove('hidden');
+    btnList.classList.remove('active');
+    btnMap.classList.add('active');
+    if (!mapInitialized) initMap();
+  } else {
+    mapEl.classList.add('hidden');
+    listEl.classList.remove('hidden');
+    btnMap.classList.remove('active');
+    btnList.classList.add('active');
+  }
+}
+
+// ── Filter section collapse ──────────────────────────────
+function toggleSection(id) {
+  const body = document.getElementById(id + '-body');
+  const icon = document.getElementById(id + '-icon');
+  const isOpen = !body.classList.contains('hidden');
+  if (isOpen) {
+    body.classList.add('hidden');
+    icon.classList.remove('fa-chevron-up');
+    icon.classList.add('fa-chevron-down');
+  } else {
+    body.classList.remove('hidden');
+    icon.classList.remove('fa-chevron-down');
+    icon.classList.add('fa-chevron-up');
+  }
+}
+
+// ── Price presets ────────────────────────────────────────
+document.querySelectorAll('.price-preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById('min-price-input').value = btn.dataset.min;
+    document.getElementById('max-price-input').value = btn.dataset.max;
+    document.getElementById('filter-form').submit();
+  });
+});
+
+// ── Price input debounce ─────────────────────────────────
+let priceDebounce;
+['min-price-input', 'max-price-input'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('input', () => {
+      clearTimeout(priceDebounce);
+      priceDebounce = setTimeout(() => document.getElementById('filter-form').submit(), 900);
+    });
+  }
+});
+
+// ── Map initialisation ───────────────────────────────────
+function initMap() {
+  mapInitialized = true;
+
+  // Default centre: Africa
+  const defaultCenter = [-2.5, 25.0];
+  const defaultZoom = 4;
+
+  const map = L.map('map', { zoomControl: true, scrollWheelZoom: false });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18,
+  }).addTo(map);
+
+  if (PROPERTIES.length === 0) {
+    map.setView(defaultCenter, defaultZoom);
+    return;
+  }
+
+  const markers = [];
+  const bounds = [];
+
+  PROPERTIES.forEach(p => {
+    if (!p.lat || !p.lng) return;
+
+    const priceLabel = p.price !== '—' ? `$${p.price}` : '—';
+
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="map-pin-price" data-id="${p.id}">${priceLabel}</div>`,
+      iconAnchor: [28, 16],
+    });
+
+    const marker = L.marker([p.lat, p.lng], { icon }).addTo(map);
+    bounds.push([p.lat, p.lng]);
+
+    marker.on('click', () => {
+      // Highlight pin
+      document.querySelectorAll('.map-pin-price').forEach(el => el.classList.remove('active'));
+      document.querySelector(`.map-pin-price[data-id="${p.id}"]`)?.classList.add('active');
+
+      // Show mini card
+      const card = document.getElementById('map-card');
+      const content = document.getElementById('map-card-content');
+      content.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-slate-500 mb-0.5">${p.type}</p>
+            <h4 class="font-bold text-slate-900 text-sm leading-tight truncate">${p.name}</h4>
+            <p class="text-xs text-slate-500 mt-0.5"><i class="fas fa-map-marker-alt mr-1"></i>${p.city}, ${p.country}</p>
+          </div>
+          ${p.rating ? `
+          <div class="shrink-0">
+            <div class="w-9 h-9 rounded-tl-lg rounded-tr-lg rounded-br-lg bg-[#003580] text-white text-sm font-bold flex items-center justify-center">${p.rating}</div>
+            <p class="text-[10px] text-slate-400 text-center mt-0.5">${p.ratingLabel}</p>
+          </div>` : ''}
+        </div>
+        <div class="mt-2 flex items-center justify-between">
+          <div>
+            <span class="text-lg font-bold text-slate-900">$${p.price}</span>
+            <span class="text-xs text-slate-400"> / night</span>
+          </div>
+          <a href="${p.url}" class="px-3 py-1.5 rounded-lg bg-[#0071c2] hover:bg-[#005999] text-white text-xs font-semibold transition">
+            See availability
+          </a>
+        </div>
+        <div class="mt-2 flex gap-1.5">
+          ${p.verified ? '<span class="text-xs px-1.5 py-0.5 bg-green-50 text-green-700 rounded font-medium"><i class="fas fa-check-circle mr-0.5"></i>Verified</span>' : ''}
+          ${p.freeCancellation ? '<span class="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded font-medium"><i class="fas fa-undo mr-0.5"></i>Free cancel</span>' : ''}
+        </div>
+      `;
+      card.classList.remove('hidden');
+
+      // Pan map to show pin with card
+      map.panTo([p.lat, p.lng], { animate: true });
+    });
+
+    markers.push(marker);
+  });
+
+  if (bounds.length === 1) {
+    map.setView(bounds[0], 10);
+  } else if (bounds.length > 1) {
+    map.fitBounds(bounds, { padding: [40, 40] });
+  } else {
+    map.setView(defaultCenter, defaultZoom);
+  }
+}
+
+// ── Date validation ──────────────────────────────────────
+const checkinInput = document.getElementById('checkin-date');
+const checkoutInput = document.getElementById('checkout-date');
+if (checkinInput && checkoutInput) {
+  const today = new Date().toISOString().split('T')[0];
+  checkinInput.min = today;
+  checkoutInput.min = today;
+  checkinInput.addEventListener('change', () => {
+    if (checkoutInput.value && checkoutInput.value <= checkinInput.value) {
+      checkoutInput.value = '';
+    }
+    checkoutInput.min = checkinInput.value || today;
+  });
+}
+</script>
+{% endblock %}

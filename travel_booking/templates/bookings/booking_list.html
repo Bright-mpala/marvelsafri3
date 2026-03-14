@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% load property_filters %}
+
+{% block title %}My Bookings{% endblock %}
+
+{% block content %}
+<section class="max-w-6xl mx-auto px-4 py-10 animate-fade-in">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div>
+            <h1 class="font-display text-3xl font-bold text-gray-900">My Bookings</h1>
+            <p class="text-gray-600">Track, manage, and rebook upcoming trips and past stays.</p>
+        </div>
+        <a href="{% url 'properties:list' %}" class="btn btn-primary">
+            <i class="fa-solid fa-search"></i> Browse properties
+        </a>
+    </div>
+
+    <div class="card card-body mb-6">
+        <form method="get" class="grid md:grid-cols-5 gap-4 items-end">
+            <div class="md:col-span-2">
+                <label class="form-label">Search bookings</label>
+                <input type="text" name="q" value="{{ search_query }}" class="form-input" placeholder="Property, city, room, reference">
+            </div>
+            <div>
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All status</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="confirmed" {% if status_filter == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Trip timing</label>
+                <select name="date" class="form-select">
+                    <option value="">All trips</option>
+                    <option value="upcoming" {% if date_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
+                    <option value="past" {% if date_filter == 'past' %}selected{% endif %}>Past</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Sort</label>
+                <select name="sort" class="form-select">
+                    <option value="recent" {% if sort_key == 'recent' or not sort_key %}selected{% endif %}>Most recent</option>
+                    <option value="check_in" {% if sort_key == 'check_in' %}selected{% endif %}>Check-in date</option>
+                    <option value="check_in_desc" {% if sort_key == 'check_in_desc' %}selected{% endif %}>Latest check-in</option>
+                    <option value="price_high" {% if sort_key == 'price_high' %}selected{% endif %}>Price high to low</option>
+                    <option value="price_low" {% if sort_key == 'price_low' %}selected{% endif %}>Price low to high</option>
+                </select>
+            </div>
+            <div class="md:col-span-5 flex gap-3">
+                <button type="submit" class="btn btn-primary btn-sm">Apply filters</button>
+                <a href="{% url 'bookings:list' %}" class="btn btn-ghost btn-sm">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-6">
+        <a href="{% url 'bookings:list' %}" class="btn btn-ghost btn-sm {% if not status_filter %}bg-blue-50 text-[#003580]{% endif %}">All</a>
+        <a href="?status=pending" class="btn btn-ghost btn-sm {% if status_filter == 'pending' %}bg-blue-50 text-[#003580]{% endif %}">Pending</a>
+        <a href="?status=confirmed" class="btn btn-ghost btn-sm {% if status_filter == 'confirmed' %}bg-blue-50 text-[#003580]{% endif %}">Confirmed</a>
+        <a href="?status=completed" class="btn btn-ghost btn-sm {% if status_filter == 'completed' %}bg-blue-50 text-[#003580]{% endif %}">Completed</a>
+        <a href="?status=cancelled" class="btn btn-ghost btn-sm {% if status_filter == 'cancelled' %}bg-blue-50 text-[#003580]{% endif %}">Cancelled</a>
+    </div>
+
+    {% if bookings %}
+    <div class="space-y-4">
+        {% for booking in bookings %}
+        <article class="card card-body">
+            <div class="grid md:grid-cols-5 gap-4 items-start">
+                <div class="md:col-span-1">
+                    {% with prop_images=booking.property.images.all %}
+                    {% if prop_images %}
+                        {% with preview_image=prop_images.0 %}
+                        <img src="{{ preview_image|property_image_url }}" alt="{{ booking.property.name }}" class="h-24 w-full md:w-28 object-cover rounded-lg">
+                        {% endwith %}
+                    {% else %}
+                    <div class="h-24 w-full md:w-28 rounded-lg bg-gray-200"></div>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+                <div class="md:col-span-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="font-semibold text-gray-900 mb-1">{{ booking.property.name }}</h2>
+                            <p class="text-sm text-gray-600">{{ booking.property.city }}, {{ booking.property.country.name }}</p>
+                            {% if booking.room_type %}
+                            <p class="text-sm text-gray-500 mt-1">Room: {{ booking.room_type.name }}</p>
+                            {% endif %}
+                            <p class="text-xs text-gray-400 mt-1">Reference #{{ booking.id }}</p>
+                        </div>
+                        <span class="badge badge-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'completed' %}info{% elif booking.status == 'cancelled' %}error{% else %}neutral{% endif %}">
+                            {{ booking.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap gap-4 text-sm text-gray-600 mt-3">
+                        <span><i class="fa-solid fa-calendar"></i> {{ booking.check_in_date|date:'M d, Y' }} - {{ booking.check_out_date|date:'M d, Y' }}</span>
+                        <span><i class="fa-solid fa-users"></i> {{ booking.guests }} guest{{ booking.guests|pluralize }}</span>
+                    </div>
+                    <div class="grid sm:grid-cols-3 gap-3 mt-4 text-xs">
+                        <div class="rounded-xl bg-slate-50 px-3 py-2">
+                            <p class="font-semibold text-slate-800">Payment</p>
+                            <p class="text-slate-600 mt-1">{{ booking.payment_summary }}</p>
+                        </div>
+                        <div class="rounded-xl bg-slate-50 px-3 py-2">
+                            <p class="font-semibold text-slate-800">Cancellation</p>
+                            <p class="text-slate-600 mt-1">{{ booking.cancellation_summary }}</p>
+                        </div>
+                        <div class="rounded-xl bg-slate-50 px-3 py-2">
+                            <p class="font-semibold text-slate-800">Refund</p>
+                            <p class="text-slate-600 mt-1">{{ booking.refund_summary }}</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <a href="{% url 'bookings:detail' booking.pk %}" class="btn btn-primary btn-sm">Manage booking</a>
+                        <a href="{% url 'bookings:rebook' booking.pk %}" class="btn btn-ghost btn-sm">Rebook</a>
+                        <a href="{% url 'bookings:download_confirmation' booking.pk %}" class="btn btn-ghost btn-sm">Confirmation</a>
+                        {% if booking.has_invoice %}
+                        <a href="{% url 'bookings:download_invoice' booking.pk %}" class="btn btn-ghost btn-sm">Invoice</a>
+                        {% endif %}
+                        <a href="{% url 'core:contact' %}?booking_reference={{ booking.id }}" class="btn btn-ghost btn-sm">Support</a>
+                    </div>
+                </div>
+                <div class="md:col-span-1 text-right">
+                    <p class="font-display text-2xl font-bold text-[#003580]">${{ booking.total_amount }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ booking.payment_summary }}</p>
+                    {% if booking.payment_status != 'paid' and booking.status == 'pending' %}
+                    <a href="{% url 'payments:booking_checkout' booking.pk %}" class="btn btn-ghost btn-sm mt-3">Pay now</a>
+                    {% endif %}
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+
+    {% if bookings.has_other_pages %}
+    <div class="flex items-center justify-between mt-8">
+        <div class="text-sm text-gray-600">Page {{ bookings.number }} of {{ bookings.paginator.num_pages }}</div>
+        <div class="flex gap-2">
+            {% if bookings.has_previous %}
+            <a href="?{% if page_query %}{{ page_query }}&{% endif %}page={{ bookings.previous_page_number }}" class="btn btn-ghost btn-sm">Previous</a>
+            {% endif %}
+            {% if bookings.has_next %}
+            <a href="?{% if page_query %}{{ page_query }}&{% endif %}page={{ bookings.next_page_number }}" class="btn btn-ghost btn-sm">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="card card-body text-center text-gray-600 py-12">
+        <i class="fa-solid fa-calendar-xmark text-4xl text-gray-300 mb-3"></i>
+        <p class="font-semibold text-gray-900 mb-2">No property bookings yet</p>
+        <p class="text-sm text-gray-600 mb-6">Start planning your next adventure.</p>
+        <a href="{% url 'properties:list' %}" class="btn btn-primary">Browse properties</a>
+    </div>
+    {% endif %}
+
+    <div class="mt-10">
+        <h2 class="font-display text-2xl font-bold text-gray-900 mb-4">Car Rentals</h2>
+        {% if car_rental_bookings %}
+        <div class="space-y-4">
+            {% for booking in car_rental_bookings %}
+            <article class="card card-body">
+                <div class="grid md:grid-cols-4 gap-4 items-start">
+                    <div class="md:col-span-1">
+                        {% if booking.car and booking.car.primary_image_url %}
+                        <img src="{{ booking.car.primary_image_url }}" alt="{{ booking.car.make }}" class="h-24 w-full md:w-28 object-cover rounded-lg">
+                        {% else %}
+                        <div class="h-24 w-full md:w-28 rounded-lg bg-gray-200 flex items-center justify-center">Car</div>
+                        {% endif %}
+                    </div>
+                    <div class="md:col-span-2">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="font-semibold text-gray-900 mb-1">{{ booking.car.make }} {{ booking.car.model }}</h3>
+                                <p class="text-sm text-gray-600">{{ booking.pickup_location.name|default:"Pickup TBD" }}</p>
+                                <p class="text-sm text-gray-500">{{ booking.pickup_date|date:'M d, Y' }} - {{ booking.dropoff_date|date:'M d, Y' }}</p>
+                            </div>
+                            <span class="badge badge-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'active' %}info{% elif booking.status == 'completed' %}neutral{% elif booking.status == 'cancelled' %}error{% else %}neutral{% endif %}">
+                                {{ booking.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="md:col-span-1 text-right">
+                        <p class="font-display text-2xl font-bold text-[#7c3aed]">${{ booking.total_amount }}</p>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card card-body text-center text-gray-600 py-8">
+            <div class="text-3xl mb-2">Car</div>
+            <p class="font-semibold text-gray-900 mb-1">No car rentals yet</p>
+            <p class="text-sm text-gray-600 mb-4">Book a car to see it here.</p>
+            <a href="{% url 'car_rentals:car_list' %}" class="btn btn-primary">Find a car</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="mt-10">
+        <h2 class="font-display text-2xl font-bold text-gray-900 mb-4">Taxi Rides</h2>
+        {% if taxi_bookings %}
+        <div class="space-y-4">
+            {% for booking in taxi_bookings %}
+            <article class="card card-body">
+                <div class="grid md:grid-cols-4 gap-4 items-start">
+                    <div class="md:col-span-1">
+                        {% if booking.car and booking.car.primary_image_url %}
+                        <img src="{{ booking.car.primary_image_url }}" alt="Taxi" class="h-24 w-full md:w-28 object-cover rounded-lg">
+                        {% else %}
+                        <div class="h-24 w-full md:w-28 rounded-lg bg-yellow-100 flex items-center justify-center">Taxi</div>
+                        {% endif %}
+                    </div>
+                    <div class="md:col-span-2">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="font-semibold text-gray-900 mb-1">Taxi ride</h3>
+                                <p class="text-sm text-gray-600">{{ booking.pickup_address|truncatewords:8 }}</p>
+                                <p class="text-sm text-gray-500">{{ booking.pickup_datetime|date:'M d, Y, H:i' }}</p>
+                            </div>
+                            <span class="badge badge-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'driver_assigned' or booking.status == 'en_route' %}info{% elif booking.status == 'completed' %}neutral{% elif booking.status == 'cancelled' %}error{% else %}neutral{% endif %}">
+                                {{ booking.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="md:col-span-1 text-right">
+                        <p class="font-display text-2xl font-bold text-[#f59e0b]">${{ booking.total_fare }}</p>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card card-body text-center text-gray-600 py-8">
+            <div class="text-3xl mb-2">Taxi</div>
+            <p class="font-semibold text-gray-900 mb-1">No taxi rides yet</p>
+            <p class="text-sm text-gray-600 mb-4">Book a ride to see it here.</p>
+            <a href="{% url 'car_rentals:car_list' %}?service=taxi" class="btn btn-primary">Book a taxi</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

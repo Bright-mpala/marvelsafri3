@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load property_filters %}
+
+{% block title %}Secure Booking Checkout - {{ property.name }}{% endblock %}
+
+{% block content %}
+<section class="max-w-6xl mx-auto px-4 py-10">
+    <div class="mb-8">
+        <p class="text-xs uppercase tracking-[0.2em] text-gray-500 mb-2">Checkout</p>
+        <h1 class="font-display text-3xl font-bold text-gray-900">Book {{ property.name }}</h1>
+        <p class="text-gray-600 mt-2">Secure your stay using protected in-platform payments only.</p>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+            <div class="card card-body">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-semibold text-gray-900">Stay details</h2>
+                    <span class="badge badge-success"><i class="fa-solid fa-lock"></i> Secure checkout</span>
+                </div>
+
+                <form method="post" id="booking-form" class="space-y-5">
+                    {% csrf_token %}
+
+                    <div class="grid md:grid-cols-2 gap-5">
+                        <div>
+                            <label for="{{ form.check_in_date.id_for_label }}" class="form-label">Check-in</label>
+                            {{ form.check_in_date }}
+                            {% if form.check_in_date.errors %}<p class="text-sm text-red-600 mt-1">{{ form.check_in_date.errors.0 }}</p>{% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.check_out_date.id_for_label }}" class="form-label">Check-out</label>
+                            {{ form.check_out_date }}
+                            {% if form.check_out_date.errors %}<p class="text-sm text-red-600 mt-1">{{ form.check_out_date.errors.0 }}</p>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-5">
+                        {% if form.room_type %}
+                        <div>
+                            <label for="{{ form.room_type.id_for_label }}" class="form-label">Room type</label>
+                            {{ form.room_type }}
+                            {% if form.room_type.errors %}<p class="text-sm text-red-600 mt-1">{{ form.room_type.errors.0 }}</p>{% endif %}
+                        </div>
+                        {% endif %}
+                        <div>
+                            <label for="{{ form.guests.id_for_label }}" class="form-label">Guests</label>
+                            {{ form.guests }}
+                            {% if form.guests.errors %}<p class="text-sm text-red-600 mt-1">{{ form.guests.errors.0 }}</p>{% endif %}
+                        </div>
+                        <div class="{% if not form.room_type %}md:col-span-1{% endif %}">
+                            <label for="{{ form.payment_option.id_for_label }}" class="form-label">Secure payment option</label>
+                            {{ form.payment_option }}
+                            {% if form.payment_option.errors %}<p class="text-sm text-red-600 mt-1">{{ form.payment_option.errors.0 }}</p>{% endif %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="{{ form.special_requests.id_for_label }}" class="form-label">Special requests (optional)</label>
+                        {{ form.special_requests }}
+                        {% if form.special_requests.errors %}<p class="text-sm text-red-600 mt-1">{{ form.special_requests.errors.0 }}</p>{% endif %}
+                    </div>
+
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        <p class="font-semibold mb-2"><i class="fa-solid fa-shield-halved"></i> Anti-fraud payment policy</p>
+                        <ul class="space-y-1">
+                            <li>Only pay through Marvel Safari checkout options shown here.</li>
+                            <li>Never send money by private chat, direct wallet transfer, or cash meetup.</li>
+                            <li>Report any host asking for off-platform payment.</li>
+                        </ul>
+                    </div>
+
+                    <label class="flex items-start gap-3 text-sm text-gray-700">
+                        {{ form.secure_payment_consent }}
+                        <span>{{ form.secure_payment_consent.label }}</span>
+                    </label>
+                    {% if form.secure_payment_consent.errors %}<p class="text-sm text-red-600">{{ form.secure_payment_consent.errors.0 }}</p>{% endif %}
+
+                    <label class="flex items-start gap-3 text-sm text-gray-700">
+                        <input type="checkbox" name="agree_terms" required class="mt-1 rounded">
+                        <span>I agree to property rules, cancellation terms, and secure payment policy.</span>
+                    </label>
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-error">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                        <div>
+                            {% for error in form.non_field_errors %}
+                            <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="flex flex-wrap gap-3">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fa-solid fa-credit-card"></i> Confirm secure booking
+                        </button>
+                        <a href="{% url 'properties:detail' property.slug %}" class="btn btn-ghost btn-lg">Back to property</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <aside class="space-y-6">
+            <div class="card card-body sticky top-24">
+                <div class="flex items-start gap-3 mb-4">
+                    {% with primary_image=property.get_primary_image %}
+                        {% if primary_image %}
+                        <img src="{{ primary_image|property_image_url }}" alt="{{ property.name }}" class="w-16 h-16 rounded-lg object-cover">
+                        {% else %}
+                        <div class="w-16 h-16 rounded-lg bg-gray-200"></div>
+                        {% endif %}
+                    {% endwith %}
+                    <div>
+                        <h3 class="font-semibold text-gray-900">{{ property.name }}</h3>
+                        <p class="text-sm text-gray-600">{{ property.city }}, {{ property.country.name }}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Nightly price</span>
+                        <span class="font-semibold" id="nightly-price">${{ default_nightly_price }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Estimated total</span>
+                        <span class="font-semibold text-[#003580]" id="estimated-total">Select dates</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Commission rule</span>
+                        <span class="font-semibold" id="commission-rate">
+                            {% if commission_type_preview == 'local' %}10% (Zimbabwe owner payout 90%){% else %}15% (outside owner payout 85%){% endif %}
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Est. commission</span>
+                        <span class="font-semibold text-gray-800" id="commission-amount">Pending dates</span>
+                    </div>
+                </div>
+
+                <div class="mt-5 rounded-xl bg-blue-50 border border-blue-100 p-4 text-sm text-blue-800">
+                    <p class="font-semibold mb-2">Secure payment channels</p>
+                    <p>Card (3D Secure), Paynow, EcoCash, and Bank Transfer (platform verified).</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const checkIn = document.getElementById('id_check_in_date');
+    const checkOut = document.getElementById('id_check_out_date');
+    const roomType = document.getElementById('id_room_type');
+    const estimatedTotal = document.getElementById('estimated-total');
+    const commissionAmount = document.getElementById('commission-amount');
+    const nightlyPriceLabel = document.getElementById('nightly-price');
+    const roomTypePriceMap = {{ room_type_price_map_json|safe }};
+    const commissionRate = Number('{{ commission_rate_preview|default:15 }}');
+
+    function getNightlyPrice() {
+        if (roomType && roomType.value && roomTypePriceMap[roomType.value]) {
+            return Number(roomTypePriceMap[roomType.value]);
+        }
+        return Number('{{ property.minimum_price|default:0 }}');
+    }
+
+    function calculate() {
+        if (!checkIn || !checkOut || !estimatedTotal || !commissionAmount) return;
+        const nightlyPrice = getNightlyPrice();
+        if (nightlyPriceLabel) {
+            nightlyPriceLabel.textContent = '$' + nightlyPrice.toFixed(2);
+        }
+        if (!checkIn.value || !checkOut.value || !nightlyPrice) {
+            estimatedTotal.textContent = 'Select dates';
+            commissionAmount.textContent = 'Pending dates';
+            return;
+        }
+
+        const start = new Date(checkIn.value);
+        const end = new Date(checkOut.value);
+        const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        if (diffDays < 1) {
+            estimatedTotal.textContent = 'Invalid dates';
+            commissionAmount.textContent = 'Invalid dates';
+            return;
+        }
+
+        const total = nightlyPrice * diffDays;
+        const commission = (total * commissionRate) / 100;
+        estimatedTotal.textContent = '$' + total.toFixed(2) + ' (' + diffDays + ' night' + (diffDays > 1 ? 's' : '') + ')';
+        commissionAmount.textContent = '$' + commission.toFixed(2);
+    }
+
+    if (checkIn) checkIn.addEventListener('change', calculate);
+    if (checkOut) checkOut.addEventListener('change', calculate);
+    if (roomType) roomType.addEventListener('change', calculate);
+    calculate();
+});
+</script>
+{% endblock %}
