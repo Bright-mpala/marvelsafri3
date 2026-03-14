@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Environment variables
+.env
+.env.*
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Static files
+staticfiles/
+
+# Media uploads
+media/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Python build files
+build/
+dist/
+*.egg-info/
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Celery
+celerybeat-schedule
+
+# Migrations cache
+*.pyc
+
+# Node modules (if frontend added)
+node_modules/
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
